@@ -34,7 +34,6 @@ a { color: var(--primary); }
 #tabs button { flex: 1; min-height: 60px; background: none; border: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; font-weight: 700; color: var(--muted); }
 #tabs button[aria-current="page"] { color: var(--primary); }
 #banner { position: absolute; top: calc(8px + env(safe-area-inset-top)); left: 12px; right: 12px; z-index: 10; background: var(--text); color: #fff; border-radius: 14px; padding: 12px 14px; box-shadow: 0 6px 20px rgba(0,0,0,.25); font-weight: 700; font-size: 14px; }
-#banner small { display: block; font-weight: 400; font-size: 12px; color: #C9D2DE; }
 
 .stack { display: flex; flex-direction: column; gap: 12px; }
 .card { background: var(--card); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
@@ -47,6 +46,8 @@ a { color: var(--primary); }
 .btn { display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 16px; border-radius: 10px; border: 0; background: var(--primary); color: #fff; font-weight: 700; text-decoration: none; text-align: center; }
 .btn.line { background: #fff; color: var(--primary); border: 1px solid var(--line); }
 .btn.text { background: none; color: var(--primary); min-height: 44px; padding: 0 4px; }
+.btn.danger { background: var(--err); color: #fff; border: 0; }
+button[disabled], input[disabled] { opacity: .55; cursor: default; }
 .item { width: 100%; min-height: 60px; background: var(--card); border: 0; border-radius: 14px; padding: 12px 14px; text-align: left; display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--text); }
 .item b { display: block; font-weight: 700; }
 .item .chev { flex-shrink: 0; color: var(--muted); }
@@ -85,7 +86,7 @@ a { color: var(--primary); }
 .pray[aria-pressed="true"] { background: var(--primary); color: #fff; }
 
 label.f { font-weight: 700; }
-input[type="text"], input[type="password"], textarea { width: 100%; min-height: 48px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #fff; }
+input[type="text"], input[type="email"], input[type="password"], textarea { width: 100%; min-height: 48px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #fff; }
 textarea { min-height: 110px; resize: vertical; }
 input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--primary); }
 .check { min-height: 44px; display: flex; align-items: center; gap: 10px; }
@@ -96,5 +97,9 @@ input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--primary)
 .times div span:last-child { font-weight: 700; text-align: right; }
 .photo { width: 132px; height: 127px; object-fit: cover; border-radius: 10px; flex-shrink: 0; }
 .note-box { background: var(--bg); border-radius: 10px; padding: 12px; }
+input[type="file"] { width: 100%; min-height: 44px; font-size: 14px; }
+.file-row { min-height: 44px; font-size: 14px; border-top: 1px solid #E1E6ED; }
+.shot { display: block; }
+.shot img { display: block; width: 100%; height: auto; border-radius: 10px; background: var(--soft); }
 .empty { background: var(--card); border-radius: 14px; padding: 20px; text-align: center; color: var(--muted); }
 :focus-visible { outline: 3px solid #F2A33A; outline-offset: 2px; }
