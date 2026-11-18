@@ -27,6 +27,9 @@ a { color: var(--primary); }
 #app { max-width: 520px; margin: 0 auto; height: 100%; height: 100dvh; display: flex; flex-direction: column; background: var(--bg); position: relative; }
 #bar { flex-shrink: 0; background: var(--primary); color: #fff; display: flex; align-items: center; gap: 4px; padding: env(safe-area-inset-top) 6px 0; min-height: calc(56px + env(safe-area-inset-top)); }
 #bar h1 { flex: 1; min-width: 0; margin: 0; padding-left: 10px; font-size: 18px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 다섯 탭의 첫 화면: 제목 앞에 교회 십자가 */
+#bar h1.mark { display: flex; align-items: center; gap: 9px; }
+#bar h1.mark::before { content: ""; flex: none; width: 22px; height: 30px; background: url(img/cross-mark.png) center / contain no-repeat; }
 .icon-btn { position: relative; width: 44px; height: 44px; background: none; border: 0; color: #fff; display: flex; align-items: center; justify-content: center; }
 #dot { position: absolute; top: 9px; right: 9px; width: 10px; height: 10px; border-radius: 50%; background: #F2A33A; border: 2px solid #fff; }
 #view { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; outline: none; -webkit-overflow-scrolling: touch; }

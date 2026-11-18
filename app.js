@@ -647,6 +647,8 @@
       if (isLocked || checking) { $app.classList.add('locked'); } else { $app.classList.remove('locked'); }
     }
     $title.textContent = checking ? '찬양하는교회' : (TITLES[state.screen] || '찬양하는교회');
+    // 다섯 탭의 첫 화면에서만 제목 앞에 교회 십자가를 보여 줍니다. (그림은 app.css 의 h1.mark 에서 넣습니다)
+    if (!checking && !isLocked && TABS.indexOf(state.screen) >= 0) { $title.classList.add('mark'); } else { $title.classList.remove('mark'); }
     $back.hidden = checking || ROOTS.indexOf(state.screen) >= 0;
     $dot.hidden = isLocked || checking || !hasUnread();
     if ($bell) { $bell.hidden = isLocked || checking; }
