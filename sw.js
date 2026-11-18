@@ -1,5 +1,5 @@
 // 앱 파일을 바꿀 때마다 이 버전을 올리면 성도들 휴대폰에도 새 버전이 받아집니다.
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE = 'chanyang-' + VERSION;
 const SHELL = [
   './', 'index.html', 'app.css', 'app.js', 'server.js', 'config.js', 'vendor/supabase.js', 'manifest.webmanifest',

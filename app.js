@@ -99,6 +99,7 @@
   var $title = document.getElementById('title');
   var $back = document.getElementById('back');
   var $dot = document.getElementById('dot');
+  var $bell = document.querySelector('#bar [data-screen="noti"]');
   var $banner = document.getElementById('banner');
   var installEvent = null;
   var bannerTimer = 0;
@@ -315,7 +316,7 @@
   function inAppCard(env) {
     var url = appUrl();
     var target = env.ios ? 'Safari' : 'Chrome';
-    var h = '<section class="card"><h2 class="h">' + target + '에서 열어 주세요</h2>' +
+    var h = '<section class="card"><h2 class="h">' + (env.kakao && !env.ios ? '다른 브라우저' : target) + '에서 열어 주세요</h2>' +
       '<div>지금은 ' + (env.kakao ? '카카오톡' : '다른 앱') + ' 안에서 열린 화면이라 앱을 설치할 수 없습니다.</div>';
     if (env.kakao) {
       h += '<a class="btn" href="kakaotalk://web/openExternal?url=' + encodeURIComponent(url) + '">' + (env.ios ? 'Safari' : '다른 브라우저') + '에서 열기</a>';
@@ -648,6 +649,7 @@
     $title.textContent = checking ? '찬양하는교회' : (TITLES[state.screen] || '찬양하는교회');
     $back.hidden = checking || ROOTS.indexOf(state.screen) >= 0;
     $dot.hidden = isLocked || checking || !hasUnread();
+    if ($bell) { $bell.hidden = isLocked || checking; }
     var tabButtons = document.querySelectorAll('#tabs button');
     for (var i = 0; i < tabButtons.length; i++) {
       if (tabButtons[i].getAttribute('data-screen') === state.tab) { tabButtons[i].setAttribute('aria-current', 'page'); }
