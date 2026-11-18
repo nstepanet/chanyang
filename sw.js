@@ -1,5 +1,5 @@
 // 앱 파일을 바꿀 때마다 이 버전을 올리면 성도들 휴대폰에도 새 버전이 받아집니다.
-const VERSION = 'v2';
+const VERSION = 'v3';
 const CACHE = 'chanyang-' + VERSION;
 const SHELL = [
   './', 'index.html', 'app.css', 'app.js', 'server.js', 'config.js', 'vendor/supabase.js', 'manifest.webmanifest',
@@ -24,6 +24,7 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // 서버(Supabase), 유튜브 등 외부 주소는 그대로 둡니다
+  if (url.pathname.includes('/supabase/')) return; // 서버 설정 복사 페이지는 항상 최신 내용을 그대로 받습니다
 
   // 소식·영상 목록·화면 파일은 새 내용을 먼저 받고, 인터넷이 없으면 저장해 둔 것을 씁니다.
   const fresh = url.pathname.includes('/data/') || req.mode === 'navigate' || /\.(html|js|css)$/.test(url.pathname);

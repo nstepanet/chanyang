@@ -59,13 +59,15 @@ https://nstepanet.github.io/chanyang/
 | `server.js` | 서버와 통신하는 코드 전부. 서버를 다른 것으로 바꾸면 이 파일만 다시 쓰면 됩니다. |
 | `vendor/supabase.js` | Supabase 브라우저 라이브러리 (@supabase/supabase-js, MIT 라이선스) |
 | `supabase/setup.sql` | 서버에 표·접근 규칙·사진 저장 공간을 만드는 설정 |
+| `supabase/index.html` | 위 설정을 번역 영향 없이 단추 한 번으로 복사하는 페이지 |
 
 `sb_secret_` 로 시작하는 Secret key 와 Database Password 는 이 저장소 어디에도 넣지 마세요.
 
 ### 처음 설정하는 순서
 
 1. Supabase 대시보드 → **Authentication → Users → Add user → Create new user** 에서 관리자 계정(이메일, 비밀번호)을 만듭니다. "Auto Confirm User" 는 켠 채로 둡니다.
-2. **SQL Editor** 에 `supabase/setup.sql` 전체를 붙여 넣고 **Run** 을 누릅니다. 결과 표의 "관리자 계정"에 1번의 이메일이 보이면 끝입니다.
+2. https://nstepanet.github.io/chanyang/supabase/ 를 열어 **서버 설정 내용 복사하기** 단추를 누른 뒤, **SQL Editor** 에 붙여 넣고 **Run** 을 누릅니다. 결과 표의 "관리자 계정"에 1번의 이메일이 보이면 끝입니다.
+   - 브라우저 자동 번역이 켜진 상태에서 GitHub 화면의 SQL 을 직접 복사하면 문장이 한국어로 바뀌어 오류가 납니다. 꼭 위 단추로 복사하세요.
 3. (권장) **Authentication → Sign In / Providers** 에서 "Allow new users to sign up" 을 끕니다. 관리자 말고는 계정이 필요 없기 때문입니다.
 
 ### 관리자를 추가하거나 빼기
