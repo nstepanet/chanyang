@@ -29,8 +29,16 @@
     home: '찬양하는교회', sermons: '설교 · 예배 영상', sermon: '설교 보기', news: '소식 · 주보 · 일정',
     detail: '자세히 보기', prayer: '기도제목', more: '더보기', info: '예배 안내',
     login: '관리자 로그인', post: '글 올리기', noti: '새 소식',
-    gate: '찬양하는교회', members: '성도 승인'
+    gate: '찬양하는교회', members: '성도 승인', design: '화면 디자인'
   };
+  // 화면 디자인. 관리자가 고른 하나가 성도 모두의 휴대폰에 적용됩니다. (모양은 app.css 의 각 디자인 부분)
+  // bar: 휴대폰 맨 위 상태 표시줄 색 · fonts: 그 디자인에서만 불러오는 글꼴 목록
+  var THEMES = [
+    { id: 'bright', name: '밝은 화면', desc: '밝은 바탕, 큰 제목, 파란색 포인트', bar: '#F3F5F9', fonts: ['fonts/pretendard.css'] },
+    { id: 'warm', name: '따뜻한 화면', desc: '크림색 바탕, 명조 제목, 초록색 포인트', bar: '#F4EEE2', fonts: ['fonts/pretendard.css', 'fonts/gowun-batang.css'] },
+    { id: 'classic', name: '클래식 화면', desc: '남색 띠가 있는 처음 디자인', bar: '#1E3A5F', fonts: [] }
+  ];
+  var DEFAULT_THEME = 'bright';   // 서버에 정해 둔 값이 없을 때(3단계 설정 전 포함)의 디자인
   var ERROR_TEXT = {
     network: '서버에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.',
     bad_login: '이메일 또는 비밀번호가 맞지 않습니다.',
@@ -91,7 +99,12 @@
     code: '', gateMsg: '',        // 입력 중인 승인번호와 안내 문구
     members: null, membersError: '',   // 관리자 화면의 명단
     memberName: '', issued: null, confirmRemove: '',   // issued: 방금 만든 승인번호 { id, name, code, expires_at }
-    imageUrls: {}, imageError: ''      // 사진 경로 → { url, at }
+    imageUrls: {}, imageError: '',     // 사진 경로 → { url, at }
+
+    // 화면 디자인
+    theme: themeInfo(store.get('theme', '')) ? store.get('theme', '') : DEFAULT_THEME,   // 마지막으로 서버에서 받은 디자인
+    themeReady: null,             // 서버에 화면 디자인 설정(3단계)이 있는지: null 아직 모름 · true · false
+    themeError: ''
   };
 
   var $app = document.getElementById('app');
@@ -105,6 +118,9 @@
   var bannerTimer = 0;
   var syncedAt = 0;
   var cleaned = false;
+  var themeAsked = Promise.resolve();   // 가장 최근에 서버에 화면 디자인을 물은 일
+  var themeSeq = 0;    // 화면 디자인을 서버에 묻거나 바꾼 순서 번호
+  var themeDone = 0;   // 화면에 반영한 답 가운데 가장 나중 것의 번호 (늦게 도착한 예전 답은 버립니다)
 
   var hooks = {
     // 사진을 올리기 전에 크기를 줄여 JPEG 로 바꿉니다.
@@ -162,6 +178,26 @@
       return oldWay();
     }
   };
+
+  // ---------- 화면 디자인 입히기 ----------
+  function themeInfo(id) {
+    for (var i = 0; i < THEMES.length; i++) { if (THEMES[i].id === id) { return THEMES[i]; } }
+    return null;
+  }
+  function applyTheme(id) {
+    var t = themeInfo(id) || themeInfo(DEFAULT_THEME);
+    state.theme = t.id;
+    document.documentElement.setAttribute('data-theme', t.id);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) { meta.setAttribute('content', t.bar); }
+    // 그 디자인에 쓰는 글꼴 목록만 불러옵니다. (글꼴 파일 자체는 화면에 나온 글자만큼만 받아 옵니다)
+    t.fonts.forEach(function (href) {
+      if (document.querySelector('link[data-font="' + href + '"]')) { return; }
+      var link = document.createElement('link');
+      link.rel = 'stylesheet'; link.href = href; link.setAttribute('data-font', href);
+      document.head.appendChild(link);
+    });
+  }
 
   // ---------- 도우미 ----------
   function codeError(code) { var e = new Error(code); e.code = code; return e; }
@@ -278,6 +314,7 @@
     $view.scrollTop = 0;
     if (screen === 'detail') { loadImages(findPost(state.postId)); }
     if (screen === 'members') { loadMembers(); }
+    if (screen === 'design') { syncTheme(); }
   }
   function toast(text) {
     $banner.textContent = text;
@@ -336,7 +373,7 @@
   screens.gate = function () {
     var env = hooks.platform();
     var h = '<div class="stack" style="gap:14px"><section class="card gate-top">' +
-      '<img src="img/cross.jpg" alt="" width="96" height="96"><h2 class="h">찬양하는교회</h2>' +
+      '<span class="gate-art"><img src="img/cross.jpg" alt="" width="96" height="96"></span><h2 class="h">찬양하는교회</h2>' +
       '<div>찬양하는교회 성도를 위한 앱입니다.<br>교회에서 문자로 받은 <b>승인번호</b>를 입력하면 사용할 수 있습니다.</div></section>';
     if (state.gateOffline) { h += '<div class="err" role="alert">서버에 연결하지 못했습니다. 인터넷 연결을 확인해 주세요.</div>'; }
     var canType = true;
@@ -357,7 +394,7 @@
     var latest = state.videos.filter(function (v) { return v.type === 'A'; })[0];
     var news = allPosts().filter(function (p) { return p.kind === 'news'; }).slice(0, 2);
     var h = '<div class="stack" style="gap:16px">';
-    h += '<section class="card"><div class="muted" style="font-weight:700">오늘의 말씀 · ' + todayLabel() + '</div>' +
+    h += '<section class="card today"><div class="muted" style="font-weight:700">오늘의 말씀 · ' + todayLabel() + '</div>' +
       '<div class="verse">' + esc(SETTINGS.verse.text) + '</div><div class="muted">' + esc(SETTINGS.verse.ref) + '</div>' +
       '<a class="qt" href="' + SETTINGS.qtUrl + '" target="_blank" rel="noopener"><span><b>생명의 삶 QT</b><small>오늘의 본문 · 두란노 페이지로 이동합니다</small></span>' + chev + '</a></section>';
     if (latest) {
@@ -367,7 +404,7 @@
     h += '<div class="grid2">' +
       '<button class="tile" data-act="go" data-screen="news" data-seg="bulletin"><b>주보</b><span class="muted">이번 주 예배 순서</span></button>' +
       '<button class="tile" data-act="go" data-screen="news" data-seg="event"><b>행사 일정</b><span class="muted">다가오는 교회 일정</span></button>' +
-      '<button class="tile" data-act="go" data-screen="info"><b>예배 안내</b><span class="muted">주일 오전 11시 · 부천역 8분</span></button>' +
+      '<button class="tile" data-act="go" data-screen="info"><b>예배 안내</b><span class="muted">주일 오전 11시 · <span class="nb">부천역 8분</span></span></button>' +
       '<button class="tile" data-act="go" data-screen="info"><b>새가족 안내</b><span class="muted">처음 오신 분들께</span></button></div>';
     h += '<section class="stack" style="gap:8px"><div class="row between"><h2 class="h">교회 소식</h2>' +
       '<button class="btn text" data-act="go" data-screen="news" data-seg="news">전체 보기</button></div>';
@@ -512,6 +549,7 @@
       h += '<section class="card"><div class="ok">관리자로 로그인되어 있습니다</div><div class="muted">' + esc(state.admin.email) + '</div>' +
         '<button class="btn" data-act="go" data-screen="post">글 올리기 (소식 · 주보 · 일정)</button>' +
         '<button class="btn line" data-act="go" data-screen="members">성도 승인 (승인번호 보내기)</button>' +
+        '<button class="btn line" data-act="go" data-screen="design">화면 디자인 (성도&nbsp;모두에게&nbsp;적용)</button>' +
         '<button class="btn line" data-act="exportAll"' + (state.busy ? ' disabled' : '') + '>전체 내용 내려받기 (백업)</button>' +
         (state.flashText ? '<div class="err" role="alert">' + esc(state.flashText) + '</div>' : '') +
         '<button class="btn line" data-act="logout">로그아웃</button></section>';
@@ -621,6 +659,38 @@
     return h + '</div>';
   };
 
+  // 관리자: 화면 디자인 고르기 (고른 디자인이 성도 모두의 휴대폰에 적용됩니다)
+  // 쉼표로 나뉜 설명은 좁은 화면에서 쉼표 자리에서만 줄이 바뀌게 묶어 줍니다.
+  function phrases(text) {
+    var parts = text.split(', ');
+    if (parts.length < 2) { return text; }
+    return parts.map(function (x) { return '<span class="nb">' + x + '</span>'; }).join(', ');
+  }
+  screens.design = function () {
+    if (!state.admin) { return '<div class="empty">관리자로 로그인한 뒤 사용할 수 있습니다.</div>'; }
+    if (state.themeReady === false) {
+      return '<div class="stack"><section class="card"><h2 class="h">서버 설정이 필요합니다</h2>' +
+        '<div>화면 디자인은 서버 설정 3단계를 실행한 뒤에 바꿀 수 있습니다. 그때까지는 모든 휴대폰이 "' + themeInfo(DEFAULT_THEME).name + '"으로 보입니다.</div>' +
+        '<a class="btn line" href="supabase/" target="_blank" rel="noopener">서버 설정 페이지 열기</a>' +
+        '<button class="btn text" data-act="retryTheme">설정을 실행했습니다 · 다시 확인</button></section></div>';
+    }
+    if (state.themeReady === null) {
+      if (!state.themeError) { return '<div class="empty">확인하는 중입니다…</div>'; }
+      return '<div class="stack"><div class="empty">' + esc(state.themeError) + '</div>' +
+        '<button class="btn" data-act="retryTheme">다시 시도</button></div>';
+    }
+    var h = '<div class="stack"><div class="note-box">여기서 고른 디자인이 <b>성도 모두의 휴대폰</b>에 적용됩니다. 다른 휴대폰은 앱을 다시 열면 바뀝니다.</div>';
+    THEMES.forEach(function (t) {
+      var on = state.theme === t.id;
+      h += '<button class="item pick' + (on ? ' on' : '') + '" data-act="setTheme" data-v="' + t.id + '" aria-pressed="' + on + '"' + (state.busy ? ' disabled' : '') + '>' +
+        '<span class="swatch s-' + t.id + '" aria-hidden="true"></span>' +
+        '<span class="grow"><b>' + t.name + '</b><span class="muted">' + phrases(t.desc) + '</span></span>' +
+        (on ? '<span class="tag ok">사용 중</span>' : '') + '</button>';
+    });
+    if (state.flashText) { h += '<div class="err" role="alert">' + esc(state.flashText) + '</div>'; }
+    return h + '</div>';
+  };
+
   screens.noti = function () {
     var list = state.posts.filter(function (p) { return p.server; }).slice(0, 20);
     if (!list.length) { return '<div class="empty">새 소식이 없습니다.</div>'; }
@@ -721,9 +791,27 @@
     state.members = null; state.issued = null;
     store.drop('postsCache');
   }
+  // 교회가 정한 화면 디자인을 서버에서 받아 옵니다. 서버에 닿지 못하면 마지막으로 받은 디자인 그대로 둡니다.
+  function syncTheme() {
+    if (!serverOn) { return Promise.resolve(); }
+    var seq = ++themeSeq;
+    var asked = Server.theme().then(function (r) {
+      if (seq < themeDone) { return; }   // 더 나중에 물은 답이나 관리자가 방금 바꾼 값이 이미 반영되어 있습니다
+      themeDone = seq;
+      state.themeReady = r.ready; state.themeError = '';
+      if (r.ready && r.theme) { store.set('theme', r.theme); } else { store.drop('theme'); }
+      var want = r.theme || DEFAULT_THEME;
+      if (want !== state.theme) { applyTheme(want); }
+    }, function (e) {
+      if (state.themeReady === null) { state.themeError = errorText(e); }
+    }).then(function () { if (state.screen === 'design') { render(); } });
+    themeAsked = asked;
+    return asked;
+  }
   // 승인 상태를 서버에 다시 묻고, 그에 맞게 글을 불러오거나 잠급니다.
   function syncAccess() {
     syncedAt = Date.now();
+    syncTheme();   // 화면 디자인도 함께 확인합니다 (글을 불러오는 일을 기다리게 하지는 않습니다)
     // 지난번에 볼 수 있었던 휴대폰은 확인을 기다리지 않고 글부터 불러옵니다.
     var early = state.gateKnown && !locked() ? loadPosts() : null;
     return checkGate().then(function () {
@@ -977,6 +1065,27 @@
       if (!state.issued) { return; }
       hooks.copyText(inviteText(state.issued)).then(function () { toast('문자 내용을 복사했습니다'); }, function () { toast('복사하지 못했습니다. 번호를 직접 적어 보내 주세요.'); });
     },
+    // --- 화면 디자인 (관리자 쪽) ---
+    setTheme: function (el) {
+      if (state.busy) { return; }
+      var id = el.getAttribute('data-v');
+      if (!themeInfo(id) || id === state.theme) { return; }
+      state.busy = true; state.flashText = ''; render();
+      Server.setTheme(id).then(function (saved) {
+        state.busy = false;
+        themeDone = ++themeSeq;   // 방금 바꾼 값이 가장 새 값입니다. 그 전에 물어 둔 답이 늦게 와도 덮어쓰지 않습니다
+        var t = themeInfo(saved) || themeInfo(id);
+        store.set('theme', t.id);
+        applyTheme(t.id);
+        render();
+        toast('"' + t.name + '"으로 바꿨습니다. 다른 휴대폰은 앱을 다시 열면 바뀝니다.');
+      }, function (e) {
+        state.busy = false;
+        if (e && e.code === 'not_ready') { state.themeReady = false; } else { state.flashText = errorText(e); }
+        render();
+      });
+    },
+    retryTheme: function () { state.themeReady = null; state.themeError = ''; render(); syncTheme(); },
     install: function () {
       if (!installEvent) { return; }
       var ev = installEvent;
@@ -1047,7 +1156,8 @@
       }).catch(function () { state.loadError = true; });
   }
   function load() {
-    return Promise.all([loadVideos(), syncAccess()]).then(function () { state.loaded = true; render(); });
+    // 화면 디자인 확인이 늦어져도 "다 불러왔다"는 표시는 늦추지 않습니다. 돌려주는 약속만 그 확인까지 기다립니다.
+    return Promise.all([loadVideos(), syncAccess()]).then(function () { state.loaded = true; render(); return themeAsked; });
   }
   function restoreAdmin() {
     if (!serverOn) { return Promise.resolve(); }
@@ -1059,11 +1169,12 @@
     return Server.currentAdmin().then(function (admin) { state.admin = admin; render(); }, function () { /* 연결이 안 되면 로그인 안 한 상태로 둡니다 */ });
   }
 
+  applyTheme(state.theme);
   render();
   var ready = Promise.all([load(), restoreAdmin()]);
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
   }
 
-  window.__chanyang = { state: state, go: go, load: load, ready: ready, hooks: hooks, sync: syncAccess }; // 점검용
+  window.__chanyang = { state: state, go: go, load: load, ready: ready, hooks: hooks, sync: syncAccess, syncTheme: syncTheme }; // 점검용
 })();

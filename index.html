@@ -5,7 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>찬양하는교회</title>
 <meta name="description" content="부천 찬양하는교회 앱 — 예배 영상, 주보, 교회 소식, 기도제목, 예배 안내">
-<meta name="theme-color" content="#1E3A5F">
+<meta name="theme-color" content="#F3F5F9">
+<script>
+/* 마지막으로 받아 둔 화면 디자인을 첫 화면이 그려지기 전에 입힙니다. (나머지 동작은 app.js 의 applyTheme) */
+(function () {
+  var theme = 'bright', bars = { bright: '#F3F5F9', warm: '#F4EEE2', classic: '#1E3A5F' };
+  try { var saved = JSON.parse(localStorage.getItem('chanyang.theme') || 'null'); if (saved === 'bright' || saved === 'warm' || saved === 'classic') { theme = saved; } } catch (e) { /* 저장 공간을 못 쓰는 환경 */ }
+  document.documentElement.setAttribute('data-theme', theme);
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) { meta.setAttribute('content', bars[theme]); }
+})();
+</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32-v2.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon-v2.png">

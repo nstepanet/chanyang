@@ -303,6 +303,24 @@
     return unwrap(db().rpc('admin_cleanup')).then(function () {}, function () {});
   }
 
+  // ---------- 화면 디자인 ----------
+  // 교회가 정한 화면 디자인을 묻습니다. { ready, theme }
+  // theme: 'bright'(밝은 화면) · 'warm'(따뜻한 화면) · 'classic'(클래식 화면). 모르는 값이면 ''.
+  // ready 가 false 면 3단계 설정을 하기 전의 서버입니다(앱은 처음 값으로 보입니다).
+  function theme() {
+    return unwrap(db().rpc('app_theme')).then(function (t) {
+      return { ready: true, theme: /^(bright|warm|classic)$/.test(String(t || '')) ? t : '' };
+    }, function (e) {
+      if (e.code === 'not_ready') { return { ready: false, theme: '' }; }
+      throw e;
+    });
+  }
+
+  // 관리자가 화면 디자인을 바꿉니다. 성도 모두의 휴대폰에 적용됩니다. 바뀐 값을 돌려줍니다.
+  function setTheme(name) {
+    return unwrap(db().rpc('admin_set_theme', { new_theme: String(name || '') })).then(function (t) { return t || name; });
+  }
+
   // ---------- 백업 ----------
   function exportAll() {
     return listPosts(5000).then(function (rows) {
@@ -334,6 +352,8 @@
     issueCode: issueCode,
     removeMember: removeMember,
     cleanup: cleanup,
+    theme: theme,
+    setTheme: setTheme,
     exportAll: exportAll
   };
 })();

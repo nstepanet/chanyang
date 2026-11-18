@@ -8,7 +8,7 @@
 <title>찬양하는교회 앱 · 서버 설정 복사</title>
 <style>
   * { box-sizing: border-box; }
-  body { margin: 0; background: #F3F5F8; color: #1A2433; font-family: "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif; font-size: 16px; line-height: 1.6; }
+  body { margin: 0; background: #F3F5F8; color: #1A2433; font-family: "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif; font-size: 16px; line-height: 1.6; word-break: keep-all; overflow-wrap: anywhere; }
   main { max-width: 640px; margin: 0 auto; padding: 24px 16px 48px; }
   h1 { font-size: 22px; margin: 0 0 8px; }
   h2 { font-size: 18px; margin: 0 0 12px; }
@@ -21,10 +21,15 @@
   .status.ok { color: #1F6B45; }
   .status.err { color: #B3261E; }
   .muted { color: #5B6676; font-size: 14px; }
+  .muted.lead { margin-bottom: 14px; }
+  .muted.lead-top { margin-top: 14px; }
   .warn { background: #FDF0E3; color: #8A4208; border-radius: 10px; padding: 12px; font-weight: 700; font-size: 14px; margin-bottom: 14px; }
   code { background: #E8EDF4; border-radius: 4px; padding: 1px 5px; }
   textarea { width: 100%; height: 200px; margin-top: 8px; border: 1px solid #C3CCD8; border-radius: 10px; padding: 10px; font: 13px/1.5 ui-monospace, Consolas, monospace; white-space: pre; }
-  summary { cursor: pointer; font-weight: 700; min-height: 44px; display: flex; align-items: center; }
+  summary { cursor: pointer; font-weight: 700; min-height: 44px; display: flex; align-items: center; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸"; flex: none; width: 20px; color: #5B6676; }
+  details[open] > summary::before { content: "▾"; }
   .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   :focus-visible { outline: 3px solid #F2A33A; outline-offset: 2px; }
 </style>
@@ -35,28 +40,64 @@
   <div class="muted">브라우저의 자동 번역이 설정 내용을 바꾸지 못하도록, 단추로 원본을 그대로 복사합니다.</div>
 
   <div class="card">
-    <h2>2단계 · 성도 승인</h2>
-    <div class="warn">이 설정을 실행하는 순간부터, 승인받지 않은 휴대폰은 글과 주보 사진을 볼 수 없습니다. 관리자 로그인이 되는지 먼저 확인해 두세요.</div>
+    <h2>3단계 · 화면 디자인</h2>
+    <div class="muted lead">관리자가 앱의 <b>더보기 → 화면 디자인</b>에서 고른 디자인(밝은 화면 · 따뜻한 화면 · 클래식 화면)이 모든 성도의 휴대폰에 적용되게 하는 설정입니다. 실행해도 지금 보이는 화면과 글, 성도 명단은 그대로입니다.</div>
     <ol>
       <li>
-        <a class="btn" href="https://supabase.com/dashboard/project/nagicayumoqssqeozmze/auth/providers" target="_blank" rel="noopener">Supabase 로그인 설정 열기 (새 탭)</a>
-        <div class="muted">화면 위쪽에서 <code>Allow new users to sign up</code> 과 <code>Allow anonymous sign-ins</code> 두 가지를 켜고 저장합니다. 이미 해 두었으면 넘어갑니다.</div>
-      </li>
-      <li>
-        <button type="button" data-copy="members" disabled>2단계 설정 내용 복사하기</button>
-        <span class="status" id="status-members" role="status">설정 내용을 불러오는 중입니다…</span>
+        <button type="button" data-copy="theme" disabled>3단계 설정 내용 복사하기</button>
+        <span class="status" id="status-theme" role="status">설정 내용을 불러오는 중입니다…</span>
       </li>
       <li>
         <a class="btn" href="https://supabase.com/dashboard/project/nagicayumoqssqeozmze/sql/new" target="_blank" rel="noopener">Supabase SQL Editor 열기 (새 탭)</a>
         <div class="muted">주소가 열리지 않으면 Supabase 왼쪽 메뉴에서 SQL Editor 를 누르세요.</div>
       </li>
       <li>SQL Editor 의 입력 칸을 한 번 누릅니다. 이미 적혀 있는 내용이 있으면 <code>Ctrl+A</code> 로 모두 고른 뒤, <code>Ctrl+V</code> 로 붙여 넣고 <code>Run</code> 을 누릅니다.</li>
-      <li>아래 결과 표의 <b>성도 승인</b> 칸에 <b>켜짐</b>이 나오면 성공입니다. 이제 앱에서 관리자로 로그인한 뒤 <b>더보기 → 성도 승인</b>에서 승인번호를 보냅니다.</li>
+      <li>아래 결과 표의 <b>화면 디자인</b> 칸에 <b>밝은 화면</b>이 나오면 성공입니다. 이제 앱에서 관리자로 로그인한 뒤 <b>더보기 → 화면 디자인</b>에서 디자인을 고릅니다. 다른 휴대폰은 앱을 다시 열 때 바뀝니다.</li>
     </ol>
+    <div class="muted lead-top">여러 번 실행해도 안전하고, 이미 고른 디자인은 바뀌지 않습니다. (다른 디자인을 고른 뒤에 다시 실행하면 결과 표에 그 디자인 이름이 나옵니다.)</div>
     <details style="margin-top:14px">
       <summary>단추로 복사가 되지 않을 때</summary>
       <div class="muted">아래 칸을 한 번 누른 뒤 <code>Ctrl+A</code>, <code>Ctrl+C</code> 를 차례로 누르세요.</div>
-      <textarea id="box-members" readonly spellcheck="false" translate="no" aria-label="2단계 설정 내용"></textarea>
+      <textarea id="box-theme" readonly spellcheck="false" translate="no" aria-label="3단계 설정 내용"></textarea>
+    </details>
+    <details>
+      <summary>앱을 거치지 않고 디자인 바꾸기</summary>
+      <div class="muted">앱에서 바꿀 수 없을 때만 씁니다. 3단계를 실행한 뒤에, 단추로 복사한 한 줄을 SQL Editor 에 붙여 넣고 Run 을 누르세요. 휴대폰에서는 앱을 다시 열면 바뀝니다.</div>
+      <div class="row">
+        <button type="button" class="line" data-say="look" data-text="select app_private.set_theme('bright');">밝은 화면으로 바꾸는 한 줄 복사</button>
+        <button type="button" class="line" data-say="look" data-text="select app_private.set_theme('warm');">따뜻한 화면으로 바꾸는 한 줄 복사</button>
+        <button type="button" class="line" data-say="look" data-text="select app_private.set_theme('classic');">클래식 화면으로 바꾸는 한 줄 복사</button>
+      </div>
+      <span class="status" id="status-look" role="status"></span>
+    </details>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>2단계 · 성도 승인 (이미 실행했습니다)</summary>
+      <div class="warn">이 설정을 실행하는 순간부터, 승인받지 않은 휴대폰은 글과 주보 사진을 볼 수 없습니다. 관리자 로그인이 되는지 먼저 확인해 두세요.</div>
+      <div class="muted lead">이미 실행한 서버에서 다시 실행해도 안전합니다. 명단과 승인 기록, 켜고 끈 상태는 그대로 남습니다.</div>
+      <ol>
+        <li>
+          <a class="btn" href="https://supabase.com/dashboard/project/nagicayumoqssqeozmze/auth/providers" target="_blank" rel="noopener">Supabase 로그인 설정 열기 (새 탭)</a>
+          <div class="muted">화면 위쪽에서 <code>Allow new users to sign up</code> 과 <code>Allow anonymous sign-ins</code> 두 가지를 켜고 저장합니다. 이미 해 두었으면 넘어갑니다.</div>
+        </li>
+        <li>
+          <button type="button" data-copy="members" disabled>2단계 설정 내용 복사하기</button>
+          <span class="status" id="status-members" role="status">설정 내용을 불러오는 중입니다…</span>
+        </li>
+        <li>
+          <a class="btn" href="https://supabase.com/dashboard/project/nagicayumoqssqeozmze/sql/new" target="_blank" rel="noopener">Supabase SQL Editor 열기 (새 탭)</a>
+          <div class="muted">주소가 열리지 않으면 Supabase 왼쪽 메뉴에서 SQL Editor 를 누르세요.</div>
+        </li>
+        <li>SQL Editor 의 입력 칸을 한 번 누릅니다. 이미 적혀 있는 내용이 있으면 <code>Ctrl+A</code> 로 모두 고른 뒤, <code>Ctrl+V</code> 로 붙여 넣고 <code>Run</code> 을 누릅니다.</li>
+        <li>아래 결과 표의 <b>성도 승인</b> 칸에 <b>켜짐</b>이 나오면 성공입니다. 이제 앱에서 관리자로 로그인한 뒤 <b>더보기 → 성도 승인</b>에서 승인번호를 보냅니다.</li>
+      </ol>
+      <details style="margin-top:14px">
+        <summary>단추로 복사가 되지 않을 때</summary>
+        <div class="muted">아래 칸을 한 번 누른 뒤 <code>Ctrl+A</code>, <code>Ctrl+C</code> 를 차례로 누르세요.</div>
+        <textarea id="box-members" readonly spellcheck="false" translate="no" aria-label="2단계 설정 내용"></textarea>
+      </details>
     </details>
   </div>
 
@@ -75,7 +116,7 @@
   <div class="card">
     <details>
       <summary>1단계 · 서버를 처음 만들 때만 (이미 실행했습니다)</summary>
-      <div class="muted">새 서버로 옮길 때는 1단계를 먼저 실행한 뒤 2단계를 실행합니다. 이미 실행한 서버에서 다시 실행해도 안전합니다.</div>
+      <div class="muted">새 서버로 옮길 때는 1단계를 먼저 실행한 뒤 2단계와 3단계를 실행합니다. 이미 실행한 서버에서 다시 실행해도 안전합니다.</div>
       <div class="row">
         <button type="button" class="line" data-copy="setup" disabled>1단계 설정 내용 복사하기</button>
       </div>
@@ -90,7 +131,8 @@
   // 파일마다 "번역되지 않은 원본"인지 확인할 문장을 정해 둡니다.
   var FILES = {
     setup: { url: 'setup.sql', marks: ['create schema if not exists app_private;', 'create table if not exists public.posts'] },
-    members: { url: 'members.sql', marks: ['create table if not exists public.members', 'create or replace function public.redeem_code(code text)'] }
+    members: { url: 'members.sql', marks: ['create table if not exists public.members', 'create or replace function public.redeem_code(code text)'] },
+    theme: { url: 'theme.sql', marks: ['create table if not exists public.app_look', 'create or replace function public.admin_set_theme(new_theme text)'] }
   };
   var loaded = {};
 
@@ -141,10 +183,12 @@
   Array.prototype.forEach.call(document.querySelectorAll('[data-text]'), function (button) {
     button.addEventListener('click', function () {
       var line = button.getAttribute('data-text');
+      // 결과를 알릴 자리: 단추에 따로 적혀 있지 않으면 "성도 승인 끄기·켜기" 아래
+      var where = button.getAttribute('data-say') || 'toggle';
       copy(line, null).then(function () {
-        say('toggle', '복사했습니다: ' + line, 'ok');
+        say(where, '복사했습니다: ' + line, 'ok');
       }, function () {
-        say('toggle', '자동 복사가 막혀 있습니다. 이 한 줄을 직접 적어 주세요: ' + line, 'err');
+        say(where, '자동 복사가 막혀 있습니다. 이 한 줄을 직접 적어 주세요: ' + line, 'err');
       });
     });
   });
