@@ -1,14 +1,19 @@
 // 앱 파일을 바꿀 때마다 이 버전을 올리면 성도들 휴대폰에도 새 버전이 받아집니다.
-const VERSION = 'v6';
+const VERSION = 'v7';
 const CACHE = 'chanyang-' + VERSION;
 const SHELL = [
   './', 'index.html', 'app.css', 'app.js', 'server.js', 'config.js', 'vendor/supabase.js', 'manifest.webmanifest',
   'data/videos.txt', 'data/content.json', 'img/church-building.jpg', 'img/cross.jpg',
-  'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'
+  'icons/icon-192-v2.png', 'icons/icon-512-v2.png', 'icons/apple-touch-icon-v2.png', 'icons/favicon-32-v2.png'
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // 브라우저가 잠깐 보관해 둔 예전 파일이 섞이지 않도록, 파일마다 서버에 새것인지 확인하고 받습니다.
+  e.waitUntil(
+    caches.open(CACHE)
+      .then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'no-cache' }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (e) => {
@@ -26,8 +31,8 @@ self.addEventListener('fetch', (e) => {
   if (url.origin !== self.location.origin) return; // 서버(Supabase), 유튜브 등 외부 주소는 그대로 둡니다
   if (url.pathname.includes('/supabase/')) return; // 서버 설정 복사 페이지는 항상 최신 내용을 그대로 받습니다
 
-  // 소식·영상 목록·화면 파일은 새 내용을 먼저 받고, 인터넷이 없으면 저장해 둔 것을 씁니다.
-  const fresh = url.pathname.includes('/data/') || req.mode === 'navigate' || /\.(html|js|css)$/.test(url.pathname);
+  // 소식·영상 목록·화면 파일·설치 정보(아이콘 이름이 적힌 파일)는 새 내용을 먼저 받고, 인터넷이 없으면 저장해 둔 것을 씁니다.
+  const fresh = url.pathname.includes('/data/') || req.mode === 'navigate' || /\.(html|js|css|webmanifest)$/.test(url.pathname);
   if (fresh) {
     e.respondWith(
       fetch(req).then((res) => {
