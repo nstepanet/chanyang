@@ -28,7 +28,8 @@
   var TITLES = {
     home: '찬양하는교회', sermons: '설교 · 예배 영상', sermon: '설교 보기', news: '소식 · 주보 · 일정',
     detail: '자세히 보기', prayer: '기도제목', more: '더보기', info: '예배 안내',
-    login: '관리자 로그인', post: '글 올리기', noti: '새 소식'
+    login: '관리자 로그인', post: '글 올리기', noti: '새 소식',
+    gate: '찬양하는교회', members: '성도 승인'
   };
   var ERROR_TEXT = {
     network: '서버에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.',
@@ -36,11 +37,14 @@
     unconfirmed: '이메일 확인이 끝나지 않은 계정입니다. 교회 앱 담당자에게 알려 주세요.',
     not_admin: '관리자로 등록되지 않은 계정입니다.',
     not_ready: '서버 설정이 아직 끝나지 않았습니다. 교회 앱 담당자에게 알려 주세요.',
+    setup: '서버 설정이 아직 끝나지 않아 승인번호를 확인할 수 없습니다. 교회 앱 담당자에게 알려 주세요.',
+    too_many: '요청이 많아 잠시 막혔습니다. 한 시간쯤 뒤에 다시 시도해 주세요.',
     forbidden: '권한이 없습니다. 로그아웃한 뒤 다시 로그인해 주세요.',
     image: '사진을 읽지 못했습니다. 다른 사진으로 다시 시도해 주세요.',
     server: '서버에서 처리하지 못했습니다. 잠시 뒤 다시 시도해 주세요.'
   };
   var TABS = ['home', 'sermons', 'news', 'prayer', 'more'];
+  var ROOTS = TABS.concat(['gate']);   // 뒤로 단추가 없는 화면
   var DAYS = '일월화수목금토';
 
   // ---------- 저장 (이 휴대폰 안에만 보관) ----------
@@ -60,6 +64,8 @@
   ['isAdmin', 'notis', 'unread'].forEach(store.drop);
 
   var serverOn = !!(Server && Server.configured());
+  var NO_GATE = { ready: false, membersOnly: false, admin: false, member: false, name: '' };
+  var savedGate = serverOn ? store.get('gate', null) : null;
   var state = {
     screen: 'home', tab: 'home', backTo: 'home',
     videos: [], posts: [], sharedPrayers: [],
@@ -75,9 +81,20 @@
     notes: store.get('notes', {}),
     myPosts: store.get('myPosts', []),       // 첫 버전에서 이 휴대폰에만 써 둔 글
     myPrayers: store.get('myPrayers', []),
-    prayed: store.get('prayed', {})
+    prayed: store.get('prayed', {}),
+
+    // 성도 승인
+    gate: savedGate || NO_GATE,   // 서버에 마지막으로 확인한 상태: 승인제가 켜져 있는지, 이 휴대폰이 승인됐는지
+    gateKnown: !serverOn || !!savedGate,   // 한 번이라도 확인한 적이 있는지 (없으면 확인될 때까지 내용을 보여 주지 않음)
+    gateOffline: false,           // 방금 확인하려 했지만 서버에 닿지 못함
+    gateForce: false,             // 다른 앱 안의 화면이지만 그래도 여기서 입력하겠다고 함
+    code: '', gateMsg: '',        // 입력 중인 승인번호와 안내 문구
+    members: null, membersError: '',   // 관리자 화면의 명단
+    memberName: '', issued: null, confirmRemove: '',   // issued: 방금 만든 승인번호 { id, name, code, expires_at }
+    imageUrls: {}, imageError: ''      // 사진 경로 → { url, at }
   };
 
+  var $app = document.getElementById('app');
   var $view = document.getElementById('view');
   var $title = document.getElementById('title');
   var $back = document.getElementById('back');
@@ -85,7 +102,8 @@
   var $banner = document.getElementById('banner');
   var installEvent = null;
   var bannerTimer = 0;
-  var postsLoadedAt = 0;
+  var syncedAt = 0;
+  var cleaned = false;
 
   var hooks = {
     // 사진을 올리기 전에 크기를 줄여 JPEG 로 바꿉니다.
@@ -111,6 +129,36 @@
         img.onerror = function () { URL.revokeObjectURL(url); reject(codeError('image')); };
         img.src = url;
       });
+    },
+    // 어떤 기기·브라우저에서 열렸는지 (설치 안내와 승인번호 입력 화면이 여기에 맞춰 달라집니다)
+    platform: function () {
+      var ua = navigator.userAgent || '';
+      var standalone = !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+      var ios = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+      var kakao = /KAKAOTALK/i.test(ua);
+      var inApp = !standalone && (kakao || /NAVER\(inapp|Instagram|FBAN|FBAV|FB_IAB|Line\/|DaumApps|BAND\/|; wv\)/i.test(ua));
+      return {
+        standalone: standalone, ios: ios, android: /Android/i.test(ua), kakao: kakao, inApp: inApp,
+        safari: ios && /Safari\//i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua)
+      };
+    },
+    // 문자 앱·다른 브라우저를 여는 주소로 이동
+    openUrl: function (url) { window.location.href = url; },
+    copyText: function (text) {
+      function oldWay() {
+        return new Promise(function (resolve, reject) {
+          var box = document.createElement('textarea');
+          box.value = text; box.setAttribute('readonly', '');
+          box.style.position = 'fixed'; box.style.opacity = '0';
+          document.body.appendChild(box); box.select();
+          var done = false;
+          try { done = document.execCommand('copy'); } catch (e) { done = false; }
+          box.remove();
+          if (done) { resolve(); } else { reject(codeError('copy')); }
+        });
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) { return navigator.clipboard.writeText(text).catch(oldWay); }
+      return oldWay();
     }
   };
 
@@ -153,6 +201,11 @@
     if (isNaN(d.getTime())) { return ''; }
     return d.getFullYear() + '년 ' + (d.getMonth() + 1) + '월 ' + d.getDate() + '일';
   }
+  function dayLabel(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) { return ''; }
+    return (d.getMonth() + 1) + '월 ' + d.getDate() + '일';
+  }
   // 서버에서 받은 한 줄을 화면에서 쓰는 모양으로 바꿉니다.
   function fromServer(row) {
     return {
@@ -188,20 +241,42 @@
     for (var i = 0; i < state.videos.length; i++) { if (state.videos[i].id === id) { return state.videos[i]; } }
     return state.videos[0];
   }
+  // 승인제가 켜져 있는데 이 휴대폰은 승인도 받지 않았고 관리자도 아닐 때
+  function locked() {
+    var g = state.gate;
+    return serverOn && g.ready && g.membersOnly && !g.member && !g.admin && !state.admin;
+  }
+  function appUrl() {
+    return new URL('./', window.location.href).href.split('#')[0].split('?')[0];
+  }
+  function spaced(code) {
+    var c = String(code || '');
+    return c.slice(0, 4) + ' ' + c.slice(4);
+  }
+  // 성도에게 보내는 문자 내용
+  function inviteText(it) {
+    return '[찬양하는교회] ' + it.name + ' 님의 앱 승인번호는 ' + spaced(it.code) + ' 입니다. (' + dayLabel(it.expires_at) + '까지, 한 번만 사용)\n' +
+      '1) 아래 주소를 열어 홈 화면에 설치합니다.\n' +
+      '2) 설치한 앱을 열고 승인번호를 입력합니다.\n' + appUrl();
+  }
   var chev = '<svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>';
   var playIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5l12 7-12 7z"></path></svg>';
 
   function go(screen, extra) {
     var prevTab = state.tab;
+    if (locked() && screen !== 'gate' && screen !== 'login') { screen = 'gate'; extra = null; }
+    if (state.screen === 'members' && screen !== 'members') { state.issued = null; state.confirmRemove = ''; }
     state.flash = ''; state.flashText = ''; state.confirmDelete = '';
     if (extra) { for (var k in extra) { state[k] = extra[k]; } }
     if (TABS.indexOf(screen) >= 0) { state.tab = screen; }
     else if (!extra || !extra.backTo) { state.backTo = prevTab; }
     state.screen = screen;
     if (screen === 'noti') { markSeen(); }
-    if (screen === 'news' || screen === 'home') { refreshPostsIfStale(); }
+    if (screen === 'news' || screen === 'home') { refreshIfStale(); }
     render();
     $view.scrollTop = 0;
+    if (screen === 'detail') { loadImages(findPost(state.postId)); }
+    if (screen === 'members') { loadMembers(); }
   }
   function toast(text) {
     $banner.textContent = text;
@@ -210,8 +285,72 @@
     bannerTimer = setTimeout(function () { $banner.hidden = true; }, 3500);
   }
 
+  // ---------- 설치 안내 ----------
+  function iosSteps(env) {
+    return '<ol class="steps">' +
+      '<li>Safari의 <b>공유</b> 단추(네모에서 화살표가 위로 나가는 모양)를 누릅니다. 보이지 않으면 주소 칸 옆의 <b>⋯</b>를 먼저 누릅니다.</li>' +
+      '<li>목록을 아래로 내려 <b>홈 화면에 추가</b>를 누릅니다.</li>' +
+      '<li>오른쪽 위의 <b>추가</b>를 누릅니다. "웹 앱으로 열기"가 보이면 켜 둔 채로 추가합니다.</li>' +
+      '<li>홈 화면에 생긴 <b>찬양하는교회</b> 아이콘을 눌러 엽니다.</li></ol>' +
+      (env.safari ? '' : '<div class="muted">Safari가 아닌 브라우저에서는 메뉴 위치가 다를 수 있습니다. 잘 되지 않으면 Safari로 열어 주세요.</div>');
+  }
+  function installCard(env) {
+    var h = '<section class="card"><h2 class="h">휴대폰에 앱으로 설치하기</h2>';
+    if (installEvent) {
+      h += '<button class="btn line" data-act="install">앱 설치하기</button><div class="muted">설치 창이 뜨면 "설치"를 눌러 주세요.</div>';
+    } else if (env.ios) {
+      h += iosSteps(env);
+    } else {
+      h += '<div class="muted"><b>Chrome</b>: 오른쪽 위 메뉴(⋮)에서 "앱 설치" 또는 "홈 화면에 추가"를 누릅니다.<br>' +
+        '<b>삼성 인터넷</b>: 아래쪽 메뉴(≡)에서 "현재 페이지 추가" → "홈 화면"을 누릅니다.</div>';
+    }
+    return h + '</section>';
+  }
+  function iosInstallCard(env) {
+    return '<section class="card"><h2 class="h">먼저 홈 화면에 설치해 주세요</h2>' +
+      '<div>아이폰은 홈 화면에 설치한 앱에서 승인번호를 입력합니다.</div>' + iosSteps(env) +
+      '<div class="muted">설치한 앱을 열면 승인번호를 입력하는 칸이 나옵니다.</div></section>';
+  }
+  // 카카오톡 같은 다른 앱 안에서 열린 화면: 설치가 되지 않으므로 바깥 브라우저로 안내합니다.
+  function inAppCard(env) {
+    var url = appUrl();
+    var target = env.ios ? 'Safari' : 'Chrome';
+    var h = '<section class="card"><h2 class="h">' + target + '에서 열어 주세요</h2>' +
+      '<div>지금은 ' + (env.kakao ? '카카오톡' : '다른 앱') + ' 안에서 열린 화면이라 앱을 설치할 수 없습니다.</div>';
+    if (env.kakao) {
+      h += '<a class="btn" href="kakaotalk://web/openExternal?url=' + encodeURIComponent(url) + '">' + (env.ios ? 'Safari' : '다른 브라우저') + '에서 열기</a>';
+    } else if (env.android) {
+      h += '<a class="btn" href="intent://' + esc(url.replace(/^https?:\/\//, '')) + '#Intent;scheme=https;package=com.android.chrome;end">Chrome에서 열기</a>';
+    }
+    h += '<button class="btn line" data-act="copyUrl">앱 주소 복사</button>' +
+      '<div class="muted">단추가 동작하지 않으면 화면의 메뉴(⋮ 또는 공유)에서 "다른 브라우저로 열기"를 누르거나, 복사한 주소를 ' + target + ' 주소 칸에 붙여 넣어 주세요.</div>';
+    if (!env.ios) { h += '<button class="btn text" data-act="gateForce">그래도 이 화면에서 승인번호 입력하기</button>'; }
+    return h + '</section>';
+  }
+
   // ---------- 화면 ----------
   var screens = {};
+
+  // 승인 전 첫 화면
+  screens.gate = function () {
+    var env = hooks.platform();
+    var h = '<div class="stack" style="gap:14px"><section class="card gate-top">' +
+      '<img src="icons/icon-192.png" alt="" width="64" height="64"><h2 class="h">찬양하는교회</h2>' +
+      '<div>찬양하는교회 성도를 위한 앱입니다.<br>교회에서 문자로 받은 <b>승인번호</b>를 입력하면 사용할 수 있습니다.</div></section>';
+    if (state.gateOffline) { h += '<div class="err" role="alert">서버에 연결하지 못했습니다. 인터넷 연결을 확인해 주세요.</div>'; }
+    var canType = true;
+    if (env.inApp && !(state.gateForce && !env.ios)) { canType = false; h += inAppCard(env); }
+    else if (env.ios && !env.standalone) { canType = false; h += iosInstallCard(env); }
+    if (canType) {
+      h += '<section class="card"><label class="f" for="code">승인번호 (숫자 8자리)</label>' +
+        '<input id="code" class="code-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="11" placeholder="0000 0000" data-bind="code" value="' + esc(state.code) + '">' +
+        (state.gateMsg ? '<div class="err" role="alert">' + esc(state.gateMsg) + '</div>' : '') +
+        '<button class="btn" data-act="redeem"' + (state.busy ? ' disabled' : '') + '>' + (state.busy ? '확인하는 중…' : '확인') + '</button>' +
+        '<div class="muted">승인번호가 없거나 기한이 지났으면 교회 앱 담당자에게 문의해 주세요.</div></section>';
+      if (!env.standalone) { h += installCard(env); }
+    }
+    return h + '<button class="btn text" data-act="go" data-screen="login">관리자 로그인</button></div>';
+  };
 
   screens.home = function () {
     var latest = state.videos.filter(function (v) { return v.type === 'A'; })[0];
@@ -319,11 +458,18 @@
       '<h2 class="h" style="font-size:20px;line-height:1.4">' + esc(p.title) + '</h2><div class="muted">' + esc(p.meta) + '</div>' +
       '<div style="height:1px;background:#E1E6ED"></div>';
     if (p.body) { h += '<div class="pre">' + esc(p.body) + '</div>'; }
+    var shown = 0;
     (p.images || []).forEach(function (path, i) {
-      var url = Server.imageUrl(path);
-      h += '<a class="shot" href="' + esc(url) + '" target="_blank" rel="noopener"><img src="' + esc(url) + '" loading="lazy" alt="' + esc(p.title) + ' 사진 ' + (i + 1) + '"></a>';
+      // 성도 승인을 쓰기 전의 서버는 공개 주소, 쓰는 서버는 권한을 확인하고 받은 주소를 씁니다.
+      var url = !serverOn ? '' : state.gate.ready ? (state.imageUrls[path] && state.imageUrls[path].url) : Server.imageUrl(path);
+      if (url) {
+        shown++;
+        h += '<a class="shot" href="' + esc(url) + '" target="_blank" rel="noopener"><img src="' + esc(url) + '" loading="lazy" alt="' + esc(p.title) + ' 사진 ' + (i + 1) + '"></a>';
+      } else {
+        h += '<div class="shot wait">' + (state.imageError ? esc(state.imageError) : '사진을 불러오는 중입니다…') + '</div>';
+      }
     });
-    if (p.images && p.images.length) { h += '<div class="muted">사진을 누르면 크게 볼 수 있습니다.</div>'; }
+    if (shown) { h += '<div class="muted">사진을 누르면 크게 볼 수 있습니다.</div>'; }
     var canDelete = p.local || (p.server && state.admin);
     if (canDelete) {
       if (state.flashText) { h += '<div class="err" role="alert">' + esc(state.flashText) + '</div>'; }
@@ -351,16 +497,12 @@
   };
 
   screens.more = function () {
-    var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+    var env = hooks.platform();
     var h = '<div class="stack">' +
       '<button class="item" data-act="go" data-screen="info"><span class="grow"><b>예배 시간 · 오시는 길 · 새가족 안내</b></span>' + chev + '</button>' +
       '<button class="item" data-act="go" data-screen="news" data-seg="event"><span class="grow"><b>행사 일정</b></span>' + chev + '</button>' +
       '<a class="item" href="' + SETTINGS.qtUrl + '" target="_blank" rel="noopener"><span class="grow"><b>생명의 삶 QT</b><span class="muted">두란노 페이지로 이동</span></span>' + chev + '</a>';
-    if (!standalone) {
-      h += '<section class="card"><h2 class="h">휴대폰에 앱으로 설치하기</h2>';
-      if (installEvent) { h += '<button class="btn" data-act="install">홈 화면에 설치</button>'; }
-      h += '<div class="muted"><b>아이폰</b>: Safari 아래쪽 공유 버튼을 누른 뒤 "홈 화면에 추가"를 선택하세요.<br><b>안드로이드</b>: Chrome 오른쪽 위 메뉴(⋮)에서 "홈 화면에 추가" 또는 "앱 설치"를 선택하세요.</div></section>';
-    }
+    if (!env.standalone) { h += installCard(env); }
     if (!serverOn) {
       h += '<div class="muted" style="padding:4px">서버가 연결되지 않아 관리자 기능은 쓸 수 없습니다.</div>';
     } else if (!state.admin) {
@@ -368,9 +510,13 @@
     } else {
       h += '<section class="card"><div class="ok">관리자로 로그인되어 있습니다</div><div class="muted">' + esc(state.admin.email) + '</div>' +
         '<button class="btn" data-act="go" data-screen="post">글 올리기 (소식 · 주보 · 일정)</button>' +
+        '<button class="btn line" data-act="go" data-screen="members">성도 승인 (승인번호 보내기)</button>' +
         '<button class="btn line" data-act="exportAll"' + (state.busy ? ' disabled' : '') + '>전체 내용 내려받기 (백업)</button>' +
         (state.flashText ? '<div class="err" role="alert">' + esc(state.flashText) + '</div>' : '') +
         '<button class="btn line" data-act="logout">로그아웃</button></section>';
+    }
+    if (state.gate.member && state.gate.name && !state.admin) {
+      h += '<div class="muted" style="padding:4px">이 휴대폰은 ' + esc(state.gate.name) + ' 님으로 승인되어 있습니다.</div>';
     }
     return h + '<div class="muted" style="padding:4px">설교 노트와 나의 기도제목은 이 휴대폰에만 저장됩니다.</div></div>';
   };
@@ -418,8 +564,60 @@
     h += '<div class="muted">사진은 올리기 전에 자동으로 크기를 줄입니다. 주보는 쪽마다 한 장씩 차례대로 고르면 그 순서로 보입니다.</div>';
     if (state.flashText) { h += '<div class="err" role="alert">' + esc(state.flashText) + '</div>'; }
     h += '<button class="btn" data-act="submitPost"' + (state.busy ? ' disabled' : '') + '>' + (state.busy ? esc(state.busyText || '올리는 중…') : '올리기') + '</button>' +
-      '<div class="muted">올리면 모든 성도의 앱에 바로 보입니다.</div></section>';
+      '<div class="muted">' + (state.gate.ready && state.gate.membersOnly ? '올리면 승인된 성도의 앱에 바로 보입니다.' : '올리면 모든 성도의 앱에 바로 보입니다.') + '</div></section>';
     return h;
+  };
+
+  // 관리자: 성도 승인 (승인번호 만들기 · 문자 보내기 · 명단)
+  screens.members = function () {
+    if (!state.admin) { return '<div class="empty">관리자로 로그인한 뒤 사용할 수 있습니다.</div>'; }
+    if (!state.gate.ready) {
+      return '<div class="stack"><section class="card"><h2 class="h">서버 설정이 필요합니다</h2>' +
+        '<div>성도 승인은 서버 설정 2단계를 실행한 뒤에 쓸 수 있습니다.</div>' +
+        '<a class="btn line" href="supabase/" target="_blank" rel="noopener">서버 설정 페이지 열기</a>' +
+        '<button class="btn text" data-act="retry">설정을 실행했습니다 · 다시 확인</button></section></div>';
+    }
+    var dis = state.busy ? ' disabled' : '';
+    var h = '<div class="stack">';
+    if (!state.gate.membersOnly) {
+      h += '<div class="note-box">지금은 성도 승인이 꺼져 있어, 승인하지 않아도 누구나 볼 수 있습니다.</div>';
+    }
+    h += '<section class="card"><label class="f" for="mname">새로 승인할 성도 이름</label>' +
+      '<input id="mname" type="text" maxlength="40" placeholder="예: 홍길동" autocomplete="off" data-bind="memberName" value="' + esc(state.memberName) + '">' +
+      '<button class="btn" data-act="issueCode"' + dis + '>승인번호 만들기</button>' +
+      '<div class="muted">전화번호는 저장하지 않습니다. 문자를 보낼 때 받는 사람을 직접 고릅니다.</div></section>';
+    if (state.flashText) { h += '<div class="err" role="alert">' + esc(state.flashText) + '</div>'; }
+    if (state.issued) {
+      var it = state.issued;
+      h += '<section class="card issued" role="status"><div class="muted" style="font-weight:700;color:var(--primary)">' + esc(it.name) + ' 님 승인번호</div>' +
+        '<div class="code-big">' + esc(spaced(it.code)) + '</div>' +
+        '<div class="muted">' + esc(dayLabel(it.expires_at)) + '까지 입력해야 하고, 한 번만 쓸 수 있습니다.</div>' +
+        '<button class="btn" data-act="sendSms">문자 보내기</button>' +
+        '<button class="btn line" data-act="copyInvite">내용 복사</button>' +
+        '<div class="muted">이 번호는 이 화면을 벗어나면 다시 볼 수 없습니다. 놓쳤으면 명단에서 "다시 보내기"로 새 번호를 만드세요.</div></section>';
+    }
+    if (state.members === null) {
+      h += '<div class="empty">' + (state.membersError ? esc(state.membersError) : '명단을 불러오는 중입니다…') + '</div>';
+      return h + '</div>';
+    }
+    var approved = state.members.filter(function (m) { return m.state === 'approved'; }).length;
+    h += '<h2 class="h" style="padding:6px 4px 0">명단 · 승인 ' + approved + '명 / 전체 ' + state.members.length + '명</h2>';
+    if (!state.members.length) { h += '<div class="empty">아직 승인번호를 보낸 성도가 없습니다.</div>'; }
+    state.members.forEach(function (m) {
+      var tag = { approved: ['승인', 'ok'], waiting: ['입력 대기', 'wait'], expired: ['기한 지남', 'off'] }[m.state] || ['', ''];
+      var sub = m.state === 'approved' ? dayLabel(m.approved_at) + ' 승인' + (m.code_waiting ? ' · 새 번호 입력 대기 (' + dayLabel(m.code_expires_at) + '까지)' : '')
+        : m.state === 'waiting' ? dayLabel(m.code_expires_at) + '까지 입력' : '승인번호 기한이 지났습니다';
+      var asking = state.confirmRemove === m.id;
+      h += '<section class="card member"><div class="row between"><b class="grow">' + esc(m.name) + '</b><span class="tag ' + tag[1] + '">' + tag[0] + '</span></div>' +
+        '<div class="muted">' + esc(sub) + '</div><div class="row">' +
+        '<button class="btn line small" data-act="reissue" data-id="' + esc(m.id) + '"' + dis + '>다시 보내기</button>' +
+        '<button class="btn ' + (asking ? 'danger' : 'line') + ' small" data-act="removeMember" data-id="' + esc(m.id) + '"' + dis + '>' +
+        (asking ? '한 번 더 누르면 ' + (m.state === 'approved' ? '취소됩니다' : '지워집니다') : (m.state === 'approved' ? '승인 취소' : '삭제')) + '</button></div></section>';
+    });
+    if (state.members.length) {
+      h += '<div class="muted" style="padding:4px">"다시 보내기"는 새 승인번호를 만듭니다. 이미 승인된 분은 새 번호를 입력할 때까지 지금 휴대폰을 그대로 쓸 수 있고, 새 번호를 입력하면 예전 휴대폰은 승인이 풀립니다.</div>';
+    }
+    return h + '</div>';
   };
 
   screens.noti = function () {
@@ -432,16 +630,42 @@
     return h + '</div>';
   };
 
+  // 처음 여는 휴대폰: 승인제가 켜져 있는지 서버에 확인하기 전에는 내용을 보여 주지 않습니다.
+  function checkingScreen() {
+    if (!state.gateOffline) { return '<div class="empty">확인하는 중입니다…</div>'; }
+    return '<div class="stack"><div class="empty">서버에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.</div>' +
+      '<button class="btn" data-act="retry">다시 시도</button></div>';
+  }
+
   function render() {
-    $title.textContent = TITLES[state.screen] || '찬양하는교회';
-    $back.hidden = TABS.indexOf(state.screen) >= 0;
-    $dot.hidden = !hasUnread();
+    var checking = serverOn && !state.gateKnown;
+    var isLocked = locked();
+    if (isLocked && state.screen !== 'gate' && state.screen !== 'login') { state.screen = 'gate'; }
+    else if (!isLocked && state.screen === 'gate') { state.screen = state.tab; }
+    if ($app) {
+      if (isLocked || checking) { $app.classList.add('locked'); } else { $app.classList.remove('locked'); }
+    }
+    $title.textContent = checking ? '찬양하는교회' : (TITLES[state.screen] || '찬양하는교회');
+    $back.hidden = checking || ROOTS.indexOf(state.screen) >= 0;
+    $dot.hidden = isLocked || checking || !hasUnread();
     var tabButtons = document.querySelectorAll('#tabs button');
     for (var i = 0; i < tabButtons.length; i++) {
       if (tabButtons[i].getAttribute('data-screen') === state.tab) { tabButtons[i].setAttribute('aria-current', 'page'); }
       else { tabButtons[i].removeAttribute('aria-current'); }
     }
-    $view.innerHTML = (screens[state.screen] || screens.home)();
+    // 입력하는 도중에 화면이 다시 그려져도 커서가 달아나지 않게 합니다.
+    var active = document.activeElement;
+    var keepId = active && active.id && $view.contains(active) ? active.id : '';
+    var selStart = null, selEnd = null;
+    if (keepId) { try { selStart = active.selectionStart; selEnd = active.selectionEnd; } catch (e) { selStart = null; } }
+    $view.innerHTML = checking ? checkingScreen() : (screens[state.screen] || screens.home)();
+    if (keepId) {
+      var again = document.getElementById(keepId);
+      if (again && !again.disabled) {
+        again.focus();
+        if (selStart !== null && selStart !== undefined) { try { again.setSelectionRange(selStart, selEnd); } catch (e) { /* 선택 범위가 없는 입력칸 */ } }
+      }
+    }
   }
 
   // ---------- 글 불러오기 ----------
@@ -469,7 +693,6 @@
       state.serverReady = !(s && s.notReady);
       if (s && s.rows) { state.posts = s.rows.map(fromServer); state.postsFrom = s.from; }
       else { state.posts = j.posts || []; state.postsFrom = 'file'; }
-      postsLoadedAt = Date.now();
       // 처음 연 날에는 "새 글" 표시를 띄우지 않고, 그 뒤에 올라온 글부터 표시합니다.
       if (!state.lastSeen && state.postsFrom === 'server') {
         state.lastSeen = newestStamp() || Date.now();
@@ -477,10 +700,77 @@
       }
     });
   }
-  function refreshPostsIfStale() {
-    if (!serverOn || !state.loaded || Date.now() - postsLoadedAt < 60000) { return; }
-    postsLoadedAt = Date.now();
-    loadPosts().then(render);
+
+  // ---------- 성도 승인 상태 ----------
+  function checkGate() {
+    if (!serverOn) { state.gateKnown = true; return Promise.resolve(); }
+    return Server.gate().then(function (g) {
+      state.gate = g; state.gateKnown = true; state.gateOffline = false;
+      store.set('gate', g);
+    }, function () {
+      state.gateOffline = true;   // 서버에 닿지 못하면 마지막으로 확인한 상태를 그대로 씁니다.
+    });
+  }
+  // 볼 수 없는 휴대폰에는 받아 둔 내용도 남기지 않습니다.
+  function lockDown() {
+    state.posts = []; state.postsFrom = 'none'; state.imageUrls = {};
+    state.members = null; state.issued = null;
+    store.drop('postsCache');
+  }
+  // 승인 상태를 서버에 다시 묻고, 그에 맞게 글을 불러오거나 잠급니다.
+  function syncAccess() {
+    syncedAt = Date.now();
+    // 지난번에 볼 수 있었던 휴대폰은 확인을 기다리지 않고 글부터 불러옵니다.
+    var early = state.gateKnown && !locked() ? loadPosts() : null;
+    return checkGate().then(function () {
+      if (!state.gateKnown) { return; }
+      if (locked()) { return Promise.resolve(early).then(lockDown, lockDown); }
+      return early || loadPosts();
+    }).then(function () { state.gateMsg = locked() ? state.gateMsg : ''; render(); });
+  }
+  function refreshIfStale() {
+    if (!serverOn || !state.loaded || Date.now() - syncedAt < 60000) { return; }
+    syncAccess();
+  }
+  // 승인된 휴대폰만 받을 수 있는 사진 주소를 서버에서 받아 옵니다 (한 시간 동안 유효).
+  function loadImages(p) {
+    if (!serverOn || !state.gate.ready || !p || !p.server || !p.images || !p.images.length) { return; }
+    var need = p.images.filter(function (path) {
+      var c = state.imageUrls[path];
+      return !c || Date.now() - c.at > 45 * 60000;
+    });
+    if (!need.length) { return; }
+    state.imageError = '';
+    Server.imageUrls(need).then(function (map) {
+      var at = Date.now();
+      need.forEach(function (path) { if (map[path]) { state.imageUrls[path] = { url: map[path], at: at }; } });
+      if (need.some(function (path) { return !map[path]; })) { state.imageError = '사진을 불러오지 못했습니다.'; }
+    }, function (e) { state.imageError = errorText(e); }).then(function () {
+      if (state.screen === 'detail' && state.postId === p.id) { render(); }
+    });
+  }
+  function loadMembers() {
+    if (!serverOn || !state.admin || !state.gate.ready) { return Promise.resolve(); }
+    if (!cleaned) { cleaned = true; Server.cleanup(); }
+    return Server.listMembers().then(function (rows) {
+      state.members = rows; state.membersError = '';
+    }, function (e) {
+      if (state.members === null) { state.membersError = errorText(e); }
+    }).then(function () { if (state.screen === 'members') { render(); } });
+  }
+  var REDEEM_TEXT = {
+    format: '승인번호는 숫자 8자리입니다. 다시 확인해 주세요.',
+    expired: '기한이 지난 승인번호입니다. 교회 앱 담당자에게 새 번호를 요청해 주세요.',
+    busy: '지금은 확인할 수 없습니다. 10분쯤 뒤에 다시 시도해 주세요.'
+  };
+  function redeemText(r) {
+    if (r.reason === 'wrong') {
+      return '승인번호가 맞지 않습니다. 다시 확인해 주세요.' + (typeof r.left === 'number' ? ' (남은 횟수 ' + r.left + '번)' : '');
+    }
+    if (r.reason === 'locked') {
+      return '여러 번 틀려서 잠겼습니다. ' + (r.minutes ? '약 ' + r.minutes + '분' : '한 시간쯤') + ' 뒤에 다시 시도해 주세요.';
+    }
+    return REDEEM_TEXT[r.reason] || ERROR_TEXT.server;
   }
 
   // ---------- 동작 ----------
@@ -523,6 +813,34 @@
       store.set('prayed', state.prayed); render();
     },
 
+    // --- 성도 승인 (성도 쪽) ---
+    redeem: function () {
+      if (state.busy) { return; }
+      var box = document.getElementById('code');
+      var raw = box ? box.value : state.code;
+      var digits = String(raw || '').replace(/\D/g, '');
+      state.code = raw || '';
+      if (digits.length !== 8) { state.gateMsg = REDEEM_TEXT.format; render(); return; }
+      state.busy = true; state.gateMsg = ''; render();
+      Server.redeem(digits).then(function (r) {
+        if (!r.ok) { state.busy = false; state.gateMsg = redeemText(r); render(); return; }
+        state.code = '';
+        return syncAccess().then(function () {
+          state.busy = false;
+          if (locked()) { state.gateMsg = ERROR_TEXT.server; render(); return; }
+          go('home');
+          toast((r.name ? r.name + ' 님, ' : '') + '승인되었습니다');
+        });
+      }).catch(function (e) {
+        state.busy = false; state.gateMsg = errorText(e); render();
+      });
+    },
+    gateForce: function () { state.gateForce = true; render(); },
+    retry: function () { state.gateOffline = false; render(); syncAccess().then(function () { if (state.screen === 'members') { loadMembers(); } }); },
+    copyUrl: function () {
+      hooks.copyText(appUrl()).then(function () { toast('앱 주소를 복사했습니다'); }, function () { toast('복사하지 못했습니다. 주소: ' + appUrl()); });
+    },
+
     // --- 관리자 ---
     login: function () {
       if (state.busy) { return; }
@@ -532,17 +850,28 @@
       state.busy = true; state.flashText = ''; render();
       document.getElementById('email').value = email;
       Server.signIn(email, pw).then(function (admin) {
-        state.busy = false; state.admin = admin;
-        go('more');
-        toast('관리자로 로그인했습니다');
-      }, function (e) {
+        state.admin = admin;
+        return syncAccess().then(function () {
+          state.busy = false;
+          go('more');
+          toast('관리자로 로그인했습니다');
+        });
+      }).catch(function (e) {
         state.busy = false; state.flashText = errorText(e); render();
         var box = document.getElementById('email');
         if (box) { box.value = email; }
       });
     },
     logout: function () {
-      Server.signOut().then(function () { state.admin = null; render(); toast('로그아웃했습니다'); });
+      Server.signOut().then(function () {
+        state.admin = null; state.members = null; state.issued = null;
+        state.gate = { ready: state.gate.ready, membersOnly: state.gate.membersOnly, admin: false, member: state.gate.member, name: state.gate.name };
+        store.set('gate', state.gate);
+        if (locked()) { lockDown(); }
+        render();
+        toast('로그아웃했습니다');
+        return syncAccess();   // 이 휴대폰이 성도로 승인되어 있었는지 서버에 다시 확인합니다
+      });
     },
     postKind: function (el) { if (!state.busy) { state.draft.kind = el.getAttribute('data-v'); state.flashText = ''; render(); } },
     removeFile: function (el) { state.postFiles.splice(Number(el.getAttribute('data-i')), 1); render(); },
@@ -606,12 +935,65 @@
         state.busy = false; render(); toast('글 ' + data.posts.length + '개를 내려받았습니다');
       }, function (e) { state.busy = false; state.flashText = errorText(e); render(); });
     },
+
+    // --- 성도 승인 (관리자 쪽) ---
+    issueCode: function () {
+      if (state.busy) { return; }
+      var box = document.getElementById('mname');
+      var name = String(box ? box.value : state.memberName).trim();
+      state.memberName = name;
+      if (!name) { state.flashText = '성도 이름을 입력해 주세요.'; render(); return; }
+      issue(name, null);
+    },
+    reissue: function (el) {
+      if (state.busy) { return; }
+      issue(null, el.getAttribute('data-id'));
+    },
+    removeMember: function (el) {
+      if (state.busy) { return; }
+      var id = el.getAttribute('data-id');
+      if (state.confirmRemove !== id) { state.confirmRemove = id; state.flashText = ''; render(); return; }
+      state.busy = true; state.flashText = ''; render();
+      Server.removeMember(id).then(function () {
+        if (state.issued && state.issued.id === id) { state.issued = null; }
+        state.confirmRemove = '';
+        return loadMembers();
+      }).then(function () {
+        state.busy = false; render(); toast('명단에서 지웠습니다');
+      }, function (e) {
+        state.busy = false; state.confirmRemove = ''; state.flashText = errorText(e); render();
+      });
+    },
+    sendSms: function () {
+      if (!state.issued) { return; }
+      // 받는 사람은 문자 앱에서 직접 고릅니다. 아이폰과 안드로이드는 내용을 붙이는 방식이 다릅니다.
+      hooks.openUrl('sms:' + (hooks.platform().ios ? '&' : '?') + 'body=' + encodeURIComponent(inviteText(state.issued)));
+    },
+    copyInvite: function () {
+      if (!state.issued) { return; }
+      hooks.copyText(inviteText(state.issued)).then(function () { toast('문자 내용을 복사했습니다'); }, function () { toast('복사하지 못했습니다. 번호를 직접 적어 보내 주세요.'); });
+    },
     install: function () {
       if (!installEvent) { return; }
-      installEvent.prompt();
+      var ev = installEvent;
       installEvent = null;
+      ev.prompt();
+      render();
     }
   };
+  function issue(name, id) {
+    state.busy = true; state.flashText = ''; state.confirmRemove = ''; render();
+    Server.issueCode(name, id).then(function (it) {
+      state.issued = it;
+      if (!id) { state.memberName = ''; }
+      return loadMembers();
+    }).then(function () {
+      state.busy = false; render();
+      $view.scrollTop = 0;
+    }, function (e) {
+      state.busy = false; state.flashText = errorText(e); render();
+    });
+  }
 
   document.addEventListener('click', function (e) {
     var el = e.target.closest ? e.target.closest('[data-act]') : null;
@@ -619,10 +1001,16 @@
     var fn = actions[el.getAttribute('data-act')];
     if (fn) { fn(el); }
   });
-  // 글 쓰는 중에 화면이 다시 그려져도 내용이 사라지지 않게 적는 대로 기억해 둡니다.
+  // 입력하는 중에 화면이 다시 그려져도 내용이 사라지지 않게 적는 대로 기억해 둡니다.
   document.addEventListener('input', function (e) {
-    var key = e.target.getAttribute && e.target.getAttribute('data-draft');
+    if (!e.target.getAttribute) { return; }
+    var key = e.target.getAttribute('data-draft');
     if (key) { state.draft[key] = e.target.value; }
+    var bind = e.target.getAttribute('data-bind');
+    if (bind) { state[bind] = e.target.value; }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target && e.target.id === 'code') { actions.redeem(); }
   });
   document.addEventListener('change', function (e) {
     if (e.target.id !== 'pfiles' || !e.target.files) { return; }
@@ -633,27 +1021,37 @@
     render();
   });
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible') { refreshPostsIfStale(); }
+    if (document.visibilityState === 'visible') { refreshIfStale(); }
   });
 
+  function installChanged() {
+    if (state.screen === 'more' || state.screen === 'gate') { render(); }
+  }
   window.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault(); installEvent = e;
-    if (state.screen === 'more') { render(); }
+    installChanged();
   });
-  window.addEventListener('appinstalled', function () { installEvent = null; if (state.screen === 'more') { render(); } });
+  window.addEventListener('appinstalled', function () { installEvent = null; installChanged(); });
 
   // ---------- 시작 ----------
-  function load() {
-    var v = fetch('data/videos.txt').then(function (r) { if (!r.ok) { throw new Error('videos'); } return r.text(); })
+  function loadVideos() {
+    return fetch('data/videos.txt').then(function (r) { if (!r.ok) { throw new Error('videos'); } return r.text(); })
       .then(function (t) {
         state.videos = parseVideos(t);
         if (state.videos.length) { state.fYear = state.videos[0].y; state.fMonth = state.videos[0].m; state.sermonId = state.videos[0].id; }
+        state.loadError = false;
       }).catch(function () { state.loadError = true; });
-    return Promise.all([v, loadPosts()]).then(function () { state.loaded = true; render(); });
+  }
+  function load() {
+    return Promise.all([loadVideos(), syncAccess()]).then(function () { state.loaded = true; render(); });
   }
   function restoreAdmin() {
     if (!serverOn) { return Promise.resolve(); }
-    Server.onSignedOut(function () { if (state.admin) { state.admin = null; render(); } });
+    // 로그인이 서버에서 풀렸을 때(관리자 로그인 만료, 승인 취소 등): 상태를 다시 확인합니다.
+    Server.onSignedOut(function () {
+      state.admin = null;
+      syncAccess();
+    });
     return Server.currentAdmin().then(function (admin) { state.admin = admin; render(); }, function () { /* 연결이 안 되면 로그인 안 한 상태로 둡니다 */ });
   }
 
@@ -663,5 +1061,5 @@
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
   }
 
-  window.__chanyang = { state: state, go: go, load: load, ready: ready, hooks: hooks }; // 점검용
+  window.__chanyang = { state: state, go: go, load: load, ready: ready, hooks: hooks, sync: syncAccess }; // 점검용
 })();

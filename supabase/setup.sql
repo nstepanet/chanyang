@@ -101,7 +101,9 @@ grant select, insert, update, delete on public.posts to service_role;
 
 do $$
 begin
-  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'posts' and policyname = 'posts_read_all') then
+  -- 2단계(성도 승인, members.sql)를 실행한 뒤에는 읽기 규칙이 posts_read_gate 로 바뀌어 있습니다.
+  -- 그때 이 설정을 다시 실행해도 "누구나 읽기"로 되돌아가지 않도록 건너뜁니다.
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'posts' and policyname in ('posts_read_all', 'posts_read_gate')) then
     create policy posts_read_all on public.posts
       for select to anon, authenticated using (true);
   end if;
@@ -122,6 +124,7 @@ $$;
 
 -- 5. 주보 사진 저장 공간 ----------------------------------------------
 --    누구나 볼 수 있고(공개), 올리고 지우는 것은 관리자만 할 수 있습니다.
+--    (2단계 members.sql 을 실행하면 비공개로 바뀌고, 이 설정을 다시 실행해도 그대로 비공개입니다.)
 insert into storage.buckets (id, name, public)
 values ('post-images', 'post-images', true)
 on conflict (id) do nothing;

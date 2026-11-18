@@ -9,7 +9,9 @@
  *   'not_admin' 로그인은 됐지만 관리자로 등록되지 않은 계정
  *   'unconfirmed' 이메일 확인이 끝나지 않은 계정
  *   'forbidden' 권한 없음 (로그인이 풀렸거나 관리자가 아님)
- *   'not_ready' 서버에 표가 아직 만들어지지 않음 (supabase/setup.sql 을 실행하기 전)
+ *   'not_ready' 서버에 표나 함수가 아직 만들어지지 않음 (supabase/ 의 설정을 실행하기 전)
+ *   'setup'     서버 설정에서 "새 계정 가입"이나 "익명 로그인"이 꺼져 있어 휴대폰 승인을 진행할 수 없음
+ *   'too_many'  요청이 너무 많아 서버가 잠시 막음
  *   'server'    그 밖의 서버 오류
  */
 (function () {
@@ -18,7 +20,11 @@
   var cfg = window.CHANYANG_CONFIG || {};
   var BUCKET = 'post-images';
   var POST_FIELDS = 'id,kind,title,body,meta,images,created_at';
+  var SIGN_SECONDS = 3600;          // 사진 주소가 살아 있는 시간
+  var GUEST_KEY = 'chanyang.guest'; // 관리자로 로그인해 있는 동안, 이 휴대폰이 받아 둔 승인을 보관하는 자리
   var client = null;
+  var gateReady = null;             // 서버에 성도 승인 기능이 있는지: null 아직 모름 · true 있음 · false 없음(1단계 설정만 된 서버)
+  var selfSignOut = 0;              // 이 파일이 스스로 로그아웃시키는 중이면 0 보다 큼
 
   function configured() {
     return !!(cfg.supabaseUrl && cfg.supabaseKey && window.supabase && window.supabase.createClient);
@@ -40,9 +46,9 @@
     return e;
   }
 
-  // 서버가 준 오류를 위의 다섯 가지 가운데 하나로 정리합니다.
+  // 서버가 준 오류를 위의 몇 가지 가운데 하나로 정리합니다.
   function toErr(raw, where) {
-    if (raw && raw.code && /^(network|bad_login|unconfirmed|not_admin|forbidden|not_ready|server)$/.test(raw.code)) { return raw; }
+    if (raw && raw.code && /^(network|bad_login|unconfirmed|not_admin|forbidden|not_ready|setup|too_many|server)$/.test(raw.code)) { return raw; }
     var msg = String((raw && (raw.message || raw.msg || raw.error_description)) || raw || '');
     var code = String((raw && raw.code) || '');
     var status = Number((raw && (raw.status || raw.statusCode)) || 0);
@@ -53,6 +59,13 @@
     if (where === 'login') {
       if (code === 'email_not_confirmed' || /email not confirmed/i.test(msg)) { return fail('unconfirmed', msg); }
       if (code === 'invalid_credentials' || /invalid login credentials/i.test(msg) || status === 400) { return fail('bad_login', msg); }
+    }
+    if (status === 429 || code === 'over_request_rate_limit' || /rate limit/i.test(msg)) { return fail('too_many', msg); }
+    if (where === 'guest') {
+      // 휴대폰에 이름표를 붙이는 단계: 서버 설정에서 가입이나 익명 로그인이 꺼져 있으면 여기서 막힙니다.
+      if (/anonymous_provider_disabled|signup_disabled|captcha_failed/.test(code) || /anonymous sign-ins are disabled|signups not allowed/i.test(msg) || status === 422) {
+        return fail('setup', msg);
+      }
     }
     // 표나 함수가 아직 없을 때 (설정 SQL 을 실행하기 전)
     if (code === 'PGRST205' || code === 'PGRST202' || code === '42P01' || code === '42883' || /could not find the (table|function)|does not exist/i.test(msg)) {
@@ -89,8 +102,30 @@
     ).then(function (rows) { return rows || []; });
   }
 
+  // 공개 주소. 성도 승인(2단계 설정)을 쓰기 전의 서버에서만 열립니다.
   function imageUrl(path) {
     return db().storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  }
+
+  // 사진 경로 목록 → { 경로: 볼 수 있는 주소 }.
+  // 성도 승인을 쓰는 서버에서는 볼 권한이 있는 휴대폰에만 한 시간짜리 주소를 내어 줍니다.
+  function imageUrls(paths) {
+    var list = (paths || []).filter(Boolean);
+    if (!list.length) { return Promise.resolve({}); }
+    var known = gateReady === null ? gate() : Promise.resolve();
+    return known.then(function () {
+      var out = {};
+      if (gateReady === false) {
+        list.forEach(function (p) { out[p] = imageUrl(p); });
+        return out;
+      }
+      return unwrap(db().storage.from(BUCKET).createSignedUrls(list, SIGN_SECONDS)).then(function (rows) {
+        (rows || []).forEach(function (it) {
+          if (it && it.path && it.signedUrl && !it.error) { out[it.path] = it.signedUrl; }
+        });
+        return out;
+      });
+    });
   }
 
   // input: { kind, title, body, meta }, blobs: 줄여 둔 사진(JPEG) 목록, onStep(몇 번째, 전체)
@@ -128,6 +163,60 @@
     });
   }
 
+  // ---------- 성도 승인 ----------
+  // 승인제가 켜져 있는지, 이 휴대폰이 승인됐는지 묻습니다.
+  // { ready, membersOnly, admin, member, name }. ready 가 false 면 2단계 설정을 하기 전의 서버입니다(누구나 볼 수 있음).
+  function gate() {
+    return unwrap(db().rpc('gate_status')).then(function (g) {
+      gateReady = true;
+      g = g || {};
+      return { ready: true, membersOnly: g.members_only === true, admin: g.admin === true, member: g.member === true, name: g.name || '' };
+    }, function (e) {
+      if (e.code === 'not_ready') {
+        gateReady = false;
+        return { ready: false, membersOnly: false, admin: false, member: false, name: '' };
+      }
+      throw e;
+    });
+  }
+
+  // 이 파일이 스스로 로그아웃시킬 때는 "로그인이 풀렸다"는 알림을 보내지 않습니다.
+  function quietSignOut() {
+    selfSignOut++;
+    function done() { setTimeout(function () { selfSignOut--; }, 0); }
+    return Promise.resolve(db().auth.signOut({ scope: 'local' })).then(done, done);
+  }
+
+  // 승인번호를 입력하려면 서버가 이 휴대폰을 알아볼 이름표(임시 계정)가 필요합니다. 없으면 받아 옵니다.
+  function guestSession() {
+    return unwrap(db().auth.getSession()).then(function (d) {
+      if (d && d.session) { return d.session; }
+      return unwrap(db().auth.signInAnonymously(), 'guest').then(function (x) {
+        if (!x || !x.session) { throw fail('setup', 'no session'); }
+        return x.session;
+      });
+    });
+  }
+
+  // 승인번호 입력. { ok: true, name } 또는 { ok: false, reason, left, minutes }
+  // reason: wrong(틀림) · expired(기한 지남) · locked(여러 번 틀려 잠김) · busy(잠시 닫힘) · format(자릿수)
+  function redeem(code) {
+    function attempt(canRetry) {
+      return guestSession().then(function () {
+        return unwrap(db().rpc('redeem_code', { code: String(code || '') }));
+      }).then(function (r) {
+        if (r && r.reason === 'no_session' && canRetry) { return quietSignOut().then(function () { return attempt(false); }); }
+        if (!r || r.reason === 'no_session') { throw fail('server', 'no session'); }
+        return r;
+      }, function (e) {
+        // 예전에 받아 둔 이름표가 더는 통하지 않을 때: 새로 받아 한 번만 다시 해 봅니다.
+        if (e.code === 'forbidden' && canRetry) { return quietSignOut().then(function () { return attempt(false); }); }
+        throw e;
+      });
+    }
+    return attempt(true);
+  }
+
   // ---------- 관리자 ----------
   function checkAdmin() {
     return unwrap(db().rpc('is_admin')).then(function (v) { return v === true; });
@@ -137,35 +226,94 @@
   function currentAdmin() {
     return unwrap(db().auth.getSession()).then(function (d) {
       var s = d && d.session;
-      if (!s || !s.user) { return null; }
+      if (!s || !s.user || s.user.is_anonymous) { return null; }
       return checkAdmin().then(function (yes) { return yes ? { email: s.user.email } : null; });
     });
   }
 
+  function readGuest() {
+    try { return JSON.parse(localStorage.getItem(GUEST_KEY) || 'null'); } catch (e) { return null; }
+  }
+  function dropGuest() {
+    try { localStorage.removeItem(GUEST_KEY); } catch (e) { /* 무시 */ }
+  }
+  // 관리자로 로그인하기 전에 이 휴대폰이 승인받은 상태였다면, 로그아웃할 때 그 승인을 되살립니다.
+  function restoreGuest() {
+    var g = readGuest();
+    dropGuest();
+    if (!g || !g.access_token || !g.refresh_token) { return Promise.resolve(false); }
+    return Promise.resolve(db().auth.setSession({ access_token: g.access_token, refresh_token: g.refresh_token }))
+      .then(function (r) { return !(r && r.error); }, function () { return false; });
+  }
+  function leave() {
+    return quietSignOut().then(restoreGuest);
+  }
+
   function signIn(email, password) {
-    return unwrap(db().auth.signInWithPassword({ email: email, password: password }), 'login').then(function (d) {
+    return unwrap(db().auth.getSession()).then(function (d) {
+      var s = d && d.session;
+      if (s && s.user && s.user.is_anonymous && s.access_token && s.refresh_token) {
+        try { localStorage.setItem(GUEST_KEY, JSON.stringify({ access_token: s.access_token, refresh_token: s.refresh_token })); } catch (e) { /* 무시 */ }
+      } else {
+        dropGuest();
+      }
+      return unwrap(db().auth.signInWithPassword({ email: email, password: password }), 'login');
+    }).then(function (d) {
       return checkAdmin().then(function (yes) {
         if (yes) { return { email: d.user.email }; }
-        return Promise.resolve(db().auth.signOut()).then(function () { throw fail('not_admin'); }, function () { throw fail('not_admin'); });
+        return leave().then(function () { throw fail('not_admin'); });
+      }, function (e) {
+        return leave().then(function () { throw e; });
       });
+    }, function (e) {
+      dropGuest();   // 로그인이 되지 않았으므로 원래 상태 그대로입니다.
+      throw e;
     });
   }
 
   function signOut() {
-    return Promise.resolve(db().auth.signOut()).then(function () {}, function () {});
+    return leave().then(function () {}, function () {});
   }
 
-  // 로그인이 풀리면(만료·다른 탭에서 로그아웃) 알려 줍니다.
+  // 로그인이 풀리면(만료·서버에서 취소) 알려 줍니다.
   function onSignedOut(callback) {
     db().auth.onAuthStateChange(function (event) {
-      if (event === 'SIGNED_OUT') { setTimeout(callback, 0); }
+      if (event === 'SIGNED_OUT' && !selfSignOut) { setTimeout(callback, 0); }
     });
+  }
+
+  // 명단: [{ id, name, state, created_at, approved_at, code_expires_at, code_waiting }]
+  // state: approved(승인) · waiting(승인번호 입력 대기) · expired(기한 지남)
+  function listMembers() {
+    return unwrap(db().rpc('admin_members')).then(function (rows) { return rows || []; });
+  }
+
+  // 승인번호 만들기. id 가 있으면 그 사람에게 새 번호를, 없으면 name 으로 새 사람을 넣습니다.
+  // { id, name, code, expires_at } — 승인번호는 이때 한 번만 받을 수 있습니다.
+  function issueCode(name, id) {
+    return unwrap(db().rpc('admin_issue_code', id ? { member_id: id } : { member_name: name }));
+  }
+
+  function removeMember(id) {
+    return unwrap(db().rpc('admin_remove_member', { member_id: id }));
+  }
+
+  // 승인번호를 넣다 만 임시 계정을 치웁니다. 실패해도 괜찮은 일입니다.
+  function cleanup() {
+    return unwrap(db().rpc('admin_cleanup')).then(function () {}, function () {});
   }
 
   // ---------- 백업 ----------
   function exportAll() {
     return listPosts(5000).then(function (rows) {
-      return { app: 'chanyang', exportedAt: new Date().toISOString(), imageBase: cfg.supabaseUrl + '/storage/v1/object/public/' + BUCKET + '/', posts: rows };
+      var out = {
+        app: 'chanyang', exportedAt: new Date().toISOString(),
+        imageBucket: BUCKET, imagesPrivate: gateReady === true,
+        imageBase: cfg.supabaseUrl + '/storage/v1/object/public/' + BUCKET + '/',
+        posts: rows
+      };
+      if (gateReady !== true) { return out; }
+      return listMembers().then(function (m) { out.members = m; return out; }, function () { return out; });
     });
   }
 
@@ -173,12 +321,19 @@
     configured: configured,
     listPosts: listPosts,
     imageUrl: imageUrl,
+    imageUrls: imageUrls,
     createPost: createPost,
     deletePost: deletePost,
+    gate: gate,
+    redeem: redeem,
     currentAdmin: currentAdmin,
     signIn: signIn,
     signOut: signOut,
     onSignedOut: onSignedOut,
+    listMembers: listMembers,
+    issueCode: issueCode,
+    removeMember: removeMember,
+    cleanup: cleanup,
     exportAll: exportAll
   };
 })();

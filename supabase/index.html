@@ -11,18 +11,21 @@
   body { margin: 0; background: #F3F5F8; color: #1A2433; font-family: "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif; font-size: 16px; line-height: 1.6; }
   main { max-width: 640px; margin: 0 auto; padding: 24px 16px 48px; }
   h1 { font-size: 22px; margin: 0 0 8px; }
+  h2 { font-size: 18px; margin: 0 0 12px; }
   .card { background: #fff; border-radius: 14px; padding: 18px; margin-top: 16px; }
   ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 14px; }
   button, a.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 18px; border-radius: 10px; border: 0; background: #1E3A5F; color: #fff; font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
-  a.btn { background: #fff; color: #1E3A5F; border: 1px solid #C3CCD8; }
+  a.btn, button.line { background: #fff; color: #1E3A5F; border: 1px solid #C3CCD8; }
   button[disabled] { opacity: .55; cursor: default; }
-  #status { display: block; margin-top: 8px; font-weight: 700; }
-  #status.ok { color: #1F6B45; }
-  #status.err { color: #B3261E; }
+  .status { display: block; margin-top: 8px; font-weight: 700; }
+  .status.ok { color: #1F6B45; }
+  .status.err { color: #B3261E; }
   .muted { color: #5B6676; font-size: 14px; }
+  .warn { background: #FDF0E3; color: #8A4208; border-radius: 10px; padding: 12px; font-weight: 700; font-size: 14px; margin-bottom: 14px; }
   code { background: #E8EDF4; border-radius: 4px; padding: 1px 5px; }
-  textarea { width: 100%; height: 220px; margin-top: 8px; border: 1px solid #C3CCD8; border-radius: 10px; padding: 10px; font: 13px/1.5 ui-monospace, Consolas, monospace; white-space: pre; }
+  textarea { width: 100%; height: 200px; margin-top: 8px; border: 1px solid #C3CCD8; border-radius: 10px; padding: 10px; font: 13px/1.5 ui-monospace, Consolas, monospace; white-space: pre; }
   summary { cursor: pointer; font-weight: 700; min-height: 44px; display: flex; align-items: center; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   :focus-visible { outline: 3px solid #F2A33A; outline-offset: 2px; }
 </style>
 </head>
@@ -32,71 +35,118 @@
   <div class="muted">브라우저의 자동 번역이 설정 내용을 바꾸지 못하도록, 단추로 원본을 그대로 복사합니다.</div>
 
   <div class="card">
+    <h2>2단계 · 성도 승인</h2>
+    <div class="warn">이 설정을 실행하는 순간부터, 승인받지 않은 휴대폰은 글과 주보 사진을 볼 수 없습니다. 관리자 로그인이 되는지 먼저 확인해 두세요.</div>
     <ol>
       <li>
-        <button id="copy" type="button" disabled>서버 설정 내용 복사하기</button>
-        <span id="status" role="status">설정 내용을 불러오는 중입니다…</span>
+        <a class="btn" href="https://supabase.com/dashboard/project/nagicayumoqssqeozmze/auth/providers" target="_blank" rel="noopener">Supabase 로그인 설정 열기 (새 탭)</a>
+        <div class="muted">화면 위쪽에서 <code>Allow new users to sign up</code> 과 <code>Allow anonymous sign-ins</code> 두 가지를 켜고 저장합니다. 이미 해 두었으면 넘어갑니다.</div>
+      </li>
+      <li>
+        <button type="button" data-copy="members" disabled>2단계 설정 내용 복사하기</button>
+        <span class="status" id="status-members" role="status">설정 내용을 불러오는 중입니다…</span>
       </li>
       <li>
         <a class="btn" href="https://supabase.com/dashboard/project/nagicayumoqssqeozmze/sql/new" target="_blank" rel="noopener">Supabase SQL Editor 열기 (새 탭)</a>
         <div class="muted">주소가 열리지 않으면 Supabase 왼쪽 메뉴에서 SQL Editor 를 누르세요.</div>
       </li>
-      <li>SQL Editor 의 입력 칸을 한 번 누릅니다. 이미 적혀 있는 내용이 있으면 <code>Ctrl+A</code> 로 모두 고른 뒤, <code>Ctrl+V</code> 로 붙여 넣습니다.</li>
-      <li><code>Run</code> 을 누릅니다. 아래 결과 표에 <b>글 개수</b>와 <b>관리자 계정</b>이 나오면 성공입니다.</li>
+      <li>SQL Editor 의 입력 칸을 한 번 누릅니다. 이미 적혀 있는 내용이 있으면 <code>Ctrl+A</code> 로 모두 고른 뒤, <code>Ctrl+V</code> 로 붙여 넣고 <code>Run</code> 을 누릅니다.</li>
+      <li>아래 결과 표의 <b>성도 승인</b> 칸에 <b>켜짐</b>이 나오면 성공입니다. 이제 앱에서 관리자로 로그인한 뒤 <b>더보기 → 성도 승인</b>에서 승인번호를 보냅니다.</li>
     </ol>
+    <details style="margin-top:14px">
+      <summary>단추로 복사가 되지 않을 때</summary>
+      <div class="muted">아래 칸을 한 번 누른 뒤 <code>Ctrl+A</code>, <code>Ctrl+C</code> 를 차례로 누르세요.</div>
+      <textarea id="box-members" readonly spellcheck="false" translate="no" aria-label="2단계 설정 내용"></textarea>
+    </details>
   </div>
 
   <div class="card">
     <details>
-      <summary>단추로 복사가 되지 않을 때</summary>
-      <div class="muted">아래 칸을 한 번 누른 뒤 <code>Ctrl+A</code>, <code>Ctrl+C</code> 를 차례로 누르세요.</div>
-      <textarea id="sql" readonly spellcheck="false" translate="no" aria-label="서버 설정 내용"></textarea>
+      <summary>성도 승인을 잠시 끄거나 다시 켜기</summary>
+      <div class="muted">문제가 생겨 예전처럼 누구나 볼 수 있게 되돌려야 할 때 씁니다. 단추로 복사한 한 줄을 SQL Editor 에 붙여 넣고 Run 을 누르세요. 명단과 승인 기록은 그대로 남습니다.</div>
+      <div class="row">
+        <button type="button" class="line" data-text="select app_private.set_members_only(false);">끄는 한 줄 복사 (누구나 볼 수 있게)</button>
+        <button type="button" class="line" data-text="select app_private.set_members_only(true);">켜는 한 줄 복사 (승인된 휴대폰만)</button>
+      </div>
+      <span class="status" id="status-toggle" role="status"></span>
+    </details>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>1단계 · 서버를 처음 만들 때만 (이미 실행했습니다)</summary>
+      <div class="muted">새 서버로 옮길 때는 1단계를 먼저 실행한 뒤 2단계를 실행합니다. 이미 실행한 서버에서 다시 실행해도 안전합니다.</div>
+      <div class="row">
+        <button type="button" class="line" data-copy="setup" disabled>1단계 설정 내용 복사하기</button>
+      </div>
+      <span class="status" id="status-setup" role="status">설정 내용을 불러오는 중입니다…</span>
+      <textarea id="box-setup" readonly spellcheck="false" translate="no" aria-label="1단계 설정 내용"></textarea>
     </details>
   </div>
 </main>
 <script>
 (function () {
   'use strict';
-  var button = document.getElementById('copy');
-  var status = document.getElementById('status');
-  var box = document.getElementById('sql');
-  var sql = '';
+  // 파일마다 "번역되지 않은 원본"인지 확인할 문장을 정해 둡니다.
+  var FILES = {
+    setup: { url: 'setup.sql', marks: ['create schema if not exists app_private;', 'create table if not exists public.posts'] },
+    members: { url: 'members.sql', marks: ['create table if not exists public.members', 'create or replace function public.redeem_code(code text)'] }
+  };
+  var loaded = {};
 
-  function say(text, kind) { status.textContent = text; status.className = kind || ''; }
-
-  fetch('setup.sql?t=' + Date.now(), { cache: 'no-store' })
-    .then(function (r) { if (!r.ok) { throw new Error('http ' + r.status); } return r.text(); })
-    .then(function (text) {
-      // 번역되지 않은 원본인지 확인합니다.
-      if (text.indexOf('create schema if not exists app_private;') < 0 || text.indexOf('create table if not exists public.posts') < 0) {
-        throw new Error('unexpected content');
-      }
-      sql = text;
-      box.value = text;
-      button.disabled = false;
-      say('준비되었습니다. 위 단추를 누르세요.', '');
-    })
-    .catch(function () { say('설정 내용을 불러오지 못했습니다. 페이지를 새로 고쳐 주세요.', 'err'); });
-
-  function done() {
-    say('복사했습니다 (' + sql.trim().split('\n').length + '줄). 이제 SQL Editor 에 붙여 넣으세요.', 'ok');
+  function say(key, text, kind) {
+    var el = document.getElementById('status-' + key);
+    if (el) { el.textContent = text; el.className = 'status' + (kind ? ' ' + kind : ''); }
   }
-  function fallbackCopy() {
-    var holder = box.closest('details');
-    holder.open = true;
-    box.focus();
-    box.select();
-    var ok = false;
-    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-    if (ok) { done(); } else { say('자동 복사가 막혀 있습니다. 아래 칸에서 Ctrl+A, Ctrl+C 를 눌러 주세요.', 'err'); }
-  }
-  button.addEventListener('click', function () {
-    if (!sql) { return; }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(sql).then(done, fallbackCopy);
-    } else {
-      fallbackCopy();
+  function copy(text, box) {
+    function oldWay() {
+      var area = box || document.createElement('textarea');
+      if (!box) { area.value = text; area.style.position = 'fixed'; area.style.opacity = '0'; document.body.appendChild(area); }
+      else { var holder = box.closest('details'); if (holder) { holder.open = true; } }
+      area.focus(); area.select();
+      var done = false;
+      try { done = document.execCommand('copy'); } catch (e) { done = false; }
+      if (!box) { area.remove(); }
+      return done ? Promise.resolve() : Promise.reject(new Error('copy'));
     }
+    if (navigator.clipboard && navigator.clipboard.writeText) { return navigator.clipboard.writeText(text).catch(oldWay); }
+    return oldWay();
+  }
+
+  Object.keys(FILES).forEach(function (key) {
+    var f = FILES[key];
+    var button = document.querySelector('[data-copy="' + key + '"]');
+    var box = document.getElementById('box-' + key);
+    fetch(f.url + '?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) { throw new Error('http ' + r.status); } return r.text(); })
+      .then(function (text) {
+        if (f.marks.some(function (m) { return text.indexOf(m) < 0; })) { throw new Error('unexpected content'); }
+        loaded[key] = text;
+        box.value = text;
+        button.disabled = false;
+        say(key, '준비되었습니다. 위 단추를 누르세요.', '');
+      })
+      .catch(function () { say(key, '설정 내용을 불러오지 못했습니다. 페이지를 새로 고쳐 주세요.', 'err'); });
+    button.addEventListener('click', function () {
+      var sql = loaded[key];
+      if (!sql) { return; }
+      copy(sql, box).then(function () {
+        say(key, '복사했습니다 (' + sql.trim().split('\n').length + '줄). 이제 SQL Editor 에 붙여 넣으세요.', 'ok');
+      }, function () {
+        say(key, '자동 복사가 막혀 있습니다. 아래 칸에서 Ctrl+A, Ctrl+C 를 눌러 주세요.', 'err');
+      });
+    });
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-text]'), function (button) {
+    button.addEventListener('click', function () {
+      var line = button.getAttribute('data-text');
+      copy(line, null).then(function () {
+        say('toggle', '복사했습니다: ' + line, 'ok');
+      }, function () {
+        say('toggle', '자동 복사가 막혀 있습니다. 이 한 줄을 직접 적어 주세요: ' + line, 'err');
+      });
+    });
   });
 })();
 </script>
