@@ -44,6 +44,7 @@ https://nstepanet.github.io/chanyang/
 | 예배 시간, 오늘의 말씀, 지도 주소 | `app.js` 맨 위의 `SETTINGS` |
 | 서버 주소와 공개용 키 | `config.js` |
 | 교회 건물 사진 | `img/church-building.jpg` |
+| 승인 화면 맨 위의 십자가 그림 | `img/cross.jpg` (정사각형, 384×384) |
 
 파일을 고친 뒤에는 `sw.js` 맨 위의 `VERSION` 값을 `v2`, `v3` 처럼 올려 주세요. 그래야 이미 설치한 휴대폰에도 새 화면 파일이 확실히 받아집니다. (`data/` 안의 파일만 고쳤다면 올리지 않아도 됩니다.)
 

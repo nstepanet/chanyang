@@ -107,7 +107,7 @@ input[type="file"] { width: 100%; min-height: 44px; font-size: 14px; }
 /* 성도 승인: 승인 전에는 아래 메뉴와 종 모양을 감춥니다 */
 .locked #tabs, .locked #bell { display: none; }
 .gate-top { align-items: center; text-align: center; padding: 22px 16px; }
-.gate-top img { border-radius: 14px; }
+.gate-top img { border-radius: 22px; }
 .gate-top .h { font-size: 20px; }
 input.code-input { font-size: 26px; font-weight: 700; letter-spacing: 3px; text-align: center; min-height: 60px; }
 input.code-input::placeholder { color: #B6C0CE; font-weight: 400; }

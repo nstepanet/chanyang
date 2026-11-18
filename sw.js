@@ -1,9 +1,9 @@
 // 앱 파일을 바꿀 때마다 이 버전을 올리면 성도들 휴대폰에도 새 버전이 받아집니다.
-const VERSION = 'v5';
+const VERSION = 'v6';
 const CACHE = 'chanyang-' + VERSION;
 const SHELL = [
   './', 'index.html', 'app.css', 'app.js', 'server.js', 'config.js', 'vendor/supabase.js', 'manifest.webmanifest',
-  'data/videos.txt', 'data/content.json', 'img/church-building.jpg',
+  'data/videos.txt', 'data/content.json', 'img/church-building.jpg', 'img/cross.jpg',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'
 ];
 

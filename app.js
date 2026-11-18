@@ -336,7 +336,7 @@
   screens.gate = function () {
     var env = hooks.platform();
     var h = '<div class="stack" style="gap:14px"><section class="card gate-top">' +
-      '<img src="icons/icon-192.png" alt="" width="64" height="64"><h2 class="h">찬양하는교회</h2>' +
+      '<img src="img/cross.jpg" alt="" width="96" height="96"><h2 class="h">찬양하는교회</h2>' +
       '<div>찬양하는교회 성도를 위한 앱입니다.<br>교회에서 문자로 받은 <b>승인번호</b>를 입력하면 사용할 수 있습니다.</div></section>';
     if (state.gateOffline) { h += '<div class="err" role="alert">서버에 연결하지 못했습니다. 인터넷 연결을 확인해 주세요.</div>'; }
     var canType = true;
