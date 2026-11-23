@@ -60,7 +60,7 @@
 - 올린 뒤 GitHub 의 Pages 빌드가 끝났는지 확인합니다(저장소의 Actions 화면, 또는 `gh api repos/nstepanet/chanyang/actions/runs --jq ".workflow_runs[0].status"`).
 - **앱 파일을 고쳤으면 `sw.js` 맨 위의 `VERSION` 을 올립니다.** 그래야 이미 설치한 휴대폰이 새 파일을 받습니다. `data/` 안의 파일만 고쳤거나 `dev/`, `README.md`, `CLAUDE.md` 만 고쳤으면 올리지 않습니다.
 - 글꼴 파일을 바꾸면 `sw.js` 의 `FONTS` 끝 숫자를 올립니다.
-- 아이콘 그림을 바꾸면 파일 이름의 `-v2` 도 바꾸고 `manifest.webmanifest`, `index.html`, `sw.js`, `app.css` 네 곳에 똑같이 적습니다. 이유는 `README.md` 의 "아이콘을 바꿀 때"에 있습니다.
+- 아이콘 그림을 바꾸면 파일 이름의 `-v3` 도 바꾸고(다음은 `-v4`) `manifest.webmanifest`, `index.html`, `sw.js`, `app.css`(원본 `dev/themes/bright.css` 도 함께) 네 곳에 똑같이 적습니다. 이유는 `README.md` 의 "아이콘을 바꿀 때"에 있습니다.
 
 ## 구조
 
