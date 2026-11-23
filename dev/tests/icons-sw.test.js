@@ -88,10 +88,12 @@ const png = (f) => {
   s.body['manifest.webmanifest'] = '새 설치 정보'; s.body['app.js'] = '새 화면'; s.body[icons[0].src] = '같은 이름으로 바뀐 그림';
   ok('설치 정보(manifest)는 새 내용을 먼저 받음', (await get('manifest.webmanifest')) === '새 설치 정보' && s.net.length === 1, JSON.stringify(s.net));
   ok('화면 파일(app.js)도 새 내용을 먼저 받음', (await get('app.js')) === '새 화면' && s.net.length === 1);
+  s.body['data/videos.txt'] = '새 영상 목록';
+  ok('영상 목록(data/)은 새 내용을 먼저 받고, 받을 때마다 서버에 새것인지 확인함', (await get('data/videos.txt')) === '새 영상 목록' && s.net.length === 1 && s.net[0].cache === 'no-cache', JSON.stringify(s.net));
   ok('아이콘·그림은 받아 둔 것을 바로 씀 (그래서 그림을 바꿀 때는 이름도 바꿔야 함)', (await get(icons[0].src)) === 'net:' + icons[0].src && s.net.length === 0 && (await get('img/cross.jpg')) !== undefined && s.net.length === 0, JSON.stringify(s.net));
   await new Promise((r) => setTimeout(r, 10));
   s.offline = true;
-  ok('인터넷이 끊겨도 마지막으로 받은 설치 정보·화면 파일과 아이콘이 나옴', (await get('manifest.webmanifest')) === '새 설치 정보' && (await get('app.js')) === '새 화면' && (await get(fav)) === 'net:' + fav && (await get(apple)) === 'net:' + apple);
+  ok('인터넷이 끊겨도 마지막으로 받은 설치 정보·화면 파일과 아이콘이 나옴', (await get('manifest.webmanifest')) === '새 설치 정보' && (await get('app.js')) === '새 화면' && (await get('data/videos.txt')) === '새 영상 목록' && (await get(fav)) === 'net:' + fav && (await get(apple)) === 'net:' + apple);
   s.offline = false;
   const out = await s.fire('fetch', { request: new Request(BASE + 'supabase/members.sql') });
   ok('서버 설정 복사 페이지와 다른 사이트 주소는 건드리지 않음', out === undefined && (await s.fire('fetch', { request: new Request('https://nagicayumoqssqeozmze.supabase.co/rest/v1/posts') })) === undefined);
