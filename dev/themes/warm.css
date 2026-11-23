@@ -1,0 +1,106 @@
+/* 바탕색과 글자색 */
+:root { --primary: #2F5546; --bg: #F4EEE2; --card: #FFFCF5; --text: #2A2521; --muted: #6C6258; --line: #E3D9C6; --soft: #E6EADB; --accent: #A5572B; --warm-bg: #F6E3CF; --warm-fg: #8A4B1C; --serif: "Gowun Batang", "Nanum Myeongjo", AppleMyungjo, serif; }
+body { font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif; letter-spacing: -0.01em; word-break: keep-all; overflow-wrap: break-word; }
+
+/* 위쪽: 크림색 바탕에 명조 제목, 제목 앞에는 초록 십자가 */
+#bar { background: var(--bg); color: var(--text); min-height: calc(62px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 10px 0; border-bottom: 1px solid var(--line); }
+#bar h1 { font-family: var(--serif); font-size: 21px; font-weight: 700; letter-spacing: -0.02em; }
+#bar h1.mark { gap: 10px; }
+#bar h1.mark::before { width: 20px; height: 28px; background: var(--primary); -webkit-mask: url(img/cross-mark.png) center / contain no-repeat; mask: url(img/cross-mark.png) center / contain no-repeat; }
+.icon-btn { color: var(--primary); }
+#dot { background: var(--accent); border-color: var(--bg); }
+#view { padding: 18px 18px 24px; }
+#banner { border-radius: 18px; background: var(--primary); }
+
+/* 카드: 그림자 대신 가는 선 */
+.card, .item, .tile, .empty { border-radius: 20px; border: 1px solid var(--line); }
+.card { padding: 22px 20px; gap: 12px; }
+.h { font-family: var(--serif); font-size: 19px; font-weight: 700; }
+
+/* 오늘의 말씀: 글귀 카드처럼 */
+.today { align-items: center; text-align: center; padding: 30px 22px 22px; background: linear-gradient(180deg, #FFFDF8 0%, #FBF5E9 100%); }
+.today > .muted:first-child { font-size: 12px; font-weight: 600; letter-spacing: 0.02em; color: var(--accent); }
+.today > .muted:first-child::before { content: "Today's Word"; display: block; font-family: var(--serif); font-style: italic; font-size: 15px; font-weight: 400; letter-spacing: 0.02em; color: var(--primary); margin-bottom: 4px; }
+.verse { font-family: var(--serif); font-size: 22px; font-weight: 700; line-height: 1.6; letter-spacing: -0.02em; padding: 4px 0 2px; }
+.verse::before { content: "\201C"; display: block; font-size: 46px; line-height: 0.5; height: 22px; color: var(--accent); margin: 6px 0 8px; }
+.verse + .muted { font-family: var(--serif); font-size: 14px; }
+.verse + .muted::before { content: "\2014\00A0"; }
+.qt { align-self: stretch; text-align: left; background: var(--soft); border-radius: 14px; min-height: 60px; padding: 0 16px; margin-top: 6px; }
+.qt small { color: #5E6B5F; }
+
+/* 최근 예배: 초록 카드와 교회 십자가 */
+.hero { border-radius: 22px; padding: 22px 74px 22px 22px; min-height: 108px; background: url(img/cross-mark.png) right 24px center / auto 62% no-repeat, linear-gradient(135deg, #3A6957 0%, #2A4D3F 100%); }
+.hero .play { width: 52px; height: 52px; background: transparent; border: 1.5px solid rgba(255,252,245,.75); color: #FFFCF5; }
+.hero small { color: #D5E0D4; }
+.hero small:first-child { font-family: var(--serif); font-style: italic; font-size: 0; }
+.hero small:first-child::before { content: "Sunday Worship"; font-size: 14px; }
+.hero b { font-family: var(--serif); font-size: 18.5px; font-weight: 700; padding: 2px 0; white-space: nowrap; }
+
+/* 네 가지 바로가기: 작은 영어 꼬리말 */
+.tile { padding: 16px 16px 15px; min-height: 104px; gap: 2px; }
+.tile::before { font-family: var(--serif); font-style: italic; font-size: 13px; color: var(--accent); margin-bottom: 8px; }
+.grid2 .tile:nth-child(1)::before { content: "Bulletin"; }
+.grid2 .tile:nth-child(2)::before { content: "Calendar"; }
+.grid2 .tile:nth-child(3)::before { content: "Worship"; }
+.grid2 .tile:nth-child(4)::before { content: "Welcome"; }
+.tile b { font-family: var(--serif); font-size: 17.5px; font-weight: 700; }
+.tile .nb { white-space: nowrap; }
+
+/* 목록 */
+.item { padding: 16px 18px; min-height: 66px; }
+.item b { font-weight: 700; font-size: 16px; }
+.item .chev { color: #B5A995; }
+.date-h { font-family: var(--serif); font-size: 16px; font-weight: 700; padding-top: 10px; }
+.badge.B { background: var(--soft); color: var(--primary); }
+
+/* 단추와 입력칸 */
+.btn { min-height: 54px; border-radius: 999px; font-weight: 700; font-size: 16px; }
+.btn.line { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
+.btn.text { background: none; color: var(--primary); font-size: 14px; font-weight: 600; min-height: 44px; }
+.btn.danger { background: var(--err); color: #fff; border-color: var(--err); }
+.btn.small { min-height: 46px; font-size: 14px; }
+.chip { border: 1px solid var(--line); background: var(--card); color: #5C5248; border-radius: 999px; min-height: 46px; }
+.chip[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: #FFFCF5; }
+.scroller .chip { border-color: var(--line); }
+.scroller .chip[aria-pressed="true"] { border-color: var(--primary); }
+.seg { background: #E9E1D1; border-radius: 999px; }
+.seg button { border-radius: 999px; color: #6A5F54; }
+.seg button[aria-pressed="true"] { background: var(--card); color: var(--text); }
+.tag { border-radius: 999px; padding: 3px 10px; }
+.pray { border: 1.5px solid var(--primary); background: transparent; }
+.pray[aria-pressed="true"] { background: var(--primary); color: #FFFCF5; }
+.issued { border: 2px solid var(--primary); }
+input[type="text"], input[type="email"], input[type="password"], textarea { border-radius: 14px; border-color: var(--line); background: #FFFEFA; }
+.note-box { border-radius: 14px; }
+#view > .stack > .note-box { background: var(--soft); }
+.photo { border-radius: 14px; }
+.player { border-radius: 18px; }
+.shot img, .shot.wait { border-radius: 14px; }
+.file-row { border-top-color: var(--line); }
+.pick { border: 2px solid var(--line); }
+.pick.on { border-color: var(--primary); }
+
+/* 아래 메뉴: 고른 탭 아래에 작은 점 */
+#tabs { background: var(--card); border-top: 1px solid var(--line); }
+#tabs button { min-height: 64px; gap: 3px; color: #766B60; font-weight: 600; }
+#tabs button[aria-current="page"] { color: var(--primary); font-weight: 800; }
+#tabs button[aria-current="page"] span::after { content: ""; display: block; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); margin: 3px auto 0; }
+
+/* 승인 화면: 아치 모양 창 안의 십자가 */
+.gate-top { padding: 30px 20px 26px; gap: 12px; }
+.gate-art { width: 92px; height: 132px; border-radius: 999px 999px 18px 18px; background: url(img/cross-mark.png) center / auto 64% no-repeat, linear-gradient(180deg, #3A6957 0%, #2A4D3F 100%); box-shadow: 0 10px 22px rgba(42,77,63,.25); }
+.gate-art img { display: none; }
+.gate-top .h { font-size: 25px; margin-top: 8px; }
+.gate-top > div { color: #5C5248; }
+input.code-input { min-height: 64px; border-radius: 18px; font-family: var(--serif); }
+
+/* 좁은 화면 (가로 360 안팎의 휴대폰): 최근 예배 카드의 글자가 십자가와 겹치지 않게 */
+@media (max-width: 374px) {
+  .hero { padding-right: 62px; background-position: right 16px center, 0 0; background-size: auto 54%, auto; }
+  .hero .play { width: 46px; height: 46px; }
+  .hero b { font-size: 16.5px; }
+}
+@media (max-width: 339px) {
+  .hero { padding-right: 20px; background: linear-gradient(135deg, #3A6957 0%, #2A4D3F 100%); }
+  .hero b { white-space: normal; }
+}

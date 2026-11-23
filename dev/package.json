@@ -1,0 +1,23 @@
+{
+  "name": "chanyang-dev",
+  "version": "1.0.0",
+  "private": true,
+  "description": "찬양하는교회 앱의 개발용 도구 (자동 검사, 디자인 묶기, 화면 점검). 앱에는 들어가지 않습니다.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node run-tests.mjs",
+    "themes": "node themes/build.mjs",
+    "themes:check": "node themes/build.mjs --check",
+    "preview": "node preview/serve.mjs",
+    "audit": "node preview/audit.mjs",
+    "sw-check": "node preview/sw-check.mjs",
+    "server-status": "node server-status.mjs"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.16",
+    "jsdom": "^31.0.1"
+  }
+}

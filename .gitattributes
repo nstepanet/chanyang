@@ -1,0 +1,6 @@
+# 글자 파일의 줄 끝을 어느 컴퓨터에서나 같게(LF) 둡니다.
+# Windows 에서 내려받아도 자동 검사 결과와 서버 설정(SQL) 내용이 달라지지 않게 하려는 것입니다.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.woff2 binary

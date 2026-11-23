@@ -1,0 +1,17 @@
+/* ===================================================================
+   화면 디자인
+   관리자가 고른 디자인이 <html data-theme="…"> 에 들어오고, 아래 규칙이 그에 맞춰 모양을 바꿉니다.
+     bright  밝은 화면 (처음 값)   ·   warm  따뜻한 화면   ·   classic  클래식 화면
+   클래식 화면은 이 위쪽의 기본 모양 그대로이고, 나머지 둘은 아래에서 기본 모양 위에 덧입힙니다.
+   =================================================================== */
+.gate-art { display: block; flex-shrink: 0; }
+.gate-art img { display: block; }
+/* 관리자의 "화면 디자인" 고르기 */
+.pick { border: 2px solid transparent; }
+.pick.on { border-color: var(--primary); }
+.pick .muted { display: block; word-break: keep-all; text-wrap: balance; }
+.pick .nb { white-space: nowrap; }
+.swatch { width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0; border: 1px solid rgba(16,24,40,.14); }
+.swatch.s-bright { background: radial-gradient(circle at 68% 66%, #2460EE 0, #2460EE 6px, transparent 6.5px), #F3F5F9; }
+.swatch.s-warm { background: radial-gradient(circle at 68% 66%, #2F5546 0, #2F5546 6px, transparent 6.5px), #F4EEE2; }
+.swatch.s-classic { background: linear-gradient(#1E3A5F 0, #1E3A5F 36%, #F3F5F8 36%); }
