@@ -105,6 +105,7 @@ input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--primary)
 .sm-list li::marker { font-weight: 700; color: var(--primary); }
 .sm-outline { display: flex; flex-direction: column; gap: 6px; }
 .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.why { display: block; font-size: 13px; font-weight: 700; color: var(--primary); }
 .times div { display: flex; justify-content: space-between; gap: 12px; }
 .times div span:last-child { font-weight: 700; text-align: right; }
 .photo { width: 132px; height: 127px; object-fit: cover; border-radius: 10px; flex-shrink: 0; }

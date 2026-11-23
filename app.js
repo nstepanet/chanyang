@@ -82,6 +82,7 @@
     fType: 'all', fYear: 0, fMonth: 0,
     seg: 'news', sermonId: '', postId: '',
     sermonData: null,             // data/sermons.json 의 설교 정리 자료 ({ topics, byId }). 못 받으면 null 이고 요약 없이 보여 줍니다
+    need: '', needTopic: '', needDone: false,   // 설교 탭의 "나에게 맞는 말씀 찾기": 적은 글, 고른 마음 단추, 찾기를 눌렀는지. 휴대폰 밖으로 보내지 않고 저장도 하지 않습니다
     outlineOpen: false,           // 설교 화면에서 "설교 전체 흐름"을 펼쳐 둔 상태
     playFrom: 0,                  // 설교 화면의 영상을 몇 초부터 재생할지 (0 이면 처음부터)
     loaded: false, loadError: false, flash: '', flashText: '',
@@ -301,6 +302,50 @@
     for (var i = 0; i < list.length; i++) { if (list[i].id === id) { return list[i].name; } }
     return '';
   }
+  // 설교 탭의 마음 단추. [주제 id, 단추 글]
+  var MOODS = [['worry', '걱정이 많아요'], ['illness', '몸이 아파요'], ['family', '가족·자녀'], ['money', '물질·일터'], ['lonely', '외롭고 힘들어요'], ['thanks', '감사해요']];
+  // 글 속에 낱말이 들어 있는지. 띄어쓰기가 달라도 찾도록 띄어쓰기를 뺀 것끼리도 비교합니다.
+  function hasWord(text, word) {
+    var w = String(word || '').trim();
+    if (!w) { return false; }
+    return text.indexOf(w) >= 0 || text.replace(/\s+/g, '').indexOf(w.replace(/\s+/g, '')) >= 0;
+  }
+  // 적은 글과 고른 마음 단추에 맞는 설교를 점수 순으로 돌려줍니다. 모든 계산은 휴대폰 안에서만 합니다.
+  // 점수: 설교의 찾는 말이 글에 있으면 3점, 글에서 찾은 주제가 설교 주제면 2점, 마음 단추의 주제면 4점. 비슷하면 최근 설교가 앞에 옵니다.
+  function matchSermons(text, topicId) {
+    var data = state.sermonData;
+    if (!data) { return []; }
+    text = String(text || '').trim();
+    var foundTopics = {};   // 글에서 찾은 주제 id → 걸린 낱말
+    if (text) {
+      data.topics.forEach(function (t) {
+        for (var i = 0; i < (t.words || []).length; i++) {
+          if (hasWord(text, t.words[i])) { foundTopics[t.id] = t.words[i]; break; }
+        }
+      });
+    }
+    var out = [];
+    data.list.forEach(function (s, idx) {
+      var score = 0, why = [];
+      (s.keywords || []).forEach(function (k) {
+        if (text && hasWord(text, k)) { score += 3; if (why.indexOf(k) < 0) { why.push(k); } }
+      });
+      (s.topics || []).forEach(function (t) {
+        if (foundTopics[t]) { score += 2; if (why.indexOf(foundTopics[t]) < 0) { why.push(foundTopics[t]); } }
+        if (topicId && t === topicId) { score += 4; }
+      });
+      if (score > 0) { out.push({ sermon: s, score: score, why: why, order: idx }); }
+    });
+    out.sort(function (a, b) { return b.score - a.score || a.order - b.order; });
+    return out.slice(0, 3);
+  }
+  // 추천 이유 한 줄. 걸린 낱말이 있으면 그 낱말을, 없으면 마음 단추의 주제 이름을 보여 줍니다.
+  function whyText(m, topicId) {
+    var words = m.why.slice(0, 3).map(function (w) { return '‘' + esc(w) + '’'; });
+    if (words.length) { return words.join(' ') + '에 맞는 말씀'; }
+    var name = topicName(topicId);
+    return name ? '‘' + esc(name) + '’ 주제의 말씀' : '맞는 말씀';
+  }
   // 승인제가 켜져 있는데 이 휴대폰은 승인도 받지 않았고 관리자도 아닐 때
   function locked() {
     var g = state.gate;
@@ -451,7 +496,9 @@
     var shown = byType.filter(function (v) { return v.y === fYear && v.m === fMonth; });
     var types = [['all', '전체'], ['A', '주일예배'], ['B', '주일저녁예배'], ['C', '금요심야기도회']];
 
-    var h = '<div class="stack"><div class="grid2" style="gap:8px">';
+    var h = '<div class="stack">';
+    if (state.sermonData && state.sermonData.list.length) { h += findBox(); }
+    h += '<div class="grid2" style="gap:8px">';
     types.forEach(function (t) {
       h += '<button class="chip" data-act="ftype" data-v="' + t[0] + '" aria-pressed="' + (state.fType === t[0]) + '">' + t[1] + '</button>';
     });
@@ -496,6 +543,36 @@
       '<div class="muted">노트는 이 휴대폰에만 저장됩니다.</div></section>';
     return h + '</div>';
   };
+
+  // 설교 탭 맨 위의 "나에게 맞는 말씀 찾기" (정리 자료가 있을 때만)
+  function findBox() {
+    var h = '<section class="card"><label class="f" for="need">나에게 맞는 말씀 찾기</label>' +
+      '<textarea id="need" placeholder="지금 내 상황을 적어 주세요. 예: 아들 취업이 걱정돼요" style="min-height:72px">' + esc(state.need) + '</textarea>' +
+      '<button class="btn" data-act="findSermons">말씀 찾기</button>' +
+      '<div class="muted">적은 내용은 이 휴대폰 안에서만 쓰고, 어디에도 보내거나 저장하지 않습니다.</div></section>';
+    h += '<div class="muted" style="font-weight:700">또는 지금 내 마음을 골라 보세요</div><div class="grid2" style="gap:8px">';
+    MOODS.forEach(function (m) {
+      h += '<button class="chip" data-act="mood" data-v="' + m[0] + '" aria-pressed="' + (state.needTopic === m[0]) + '">' + m[1] + '</button>';
+    });
+    h += '</div>';
+    if (state.needDone) {
+      var found = matchSermons(state.need, state.needTopic);
+      h += '<div class="row" style="justify-content:space-between"><div class="date-h">이런 설교를 권해 드려요</div><button class="btn text" data-act="clearFind">지우기</button></div>';
+      if (!found.length) {
+        h += '<div class="empty">맞는 설교를 찾지 못했습니다. 다른 말로 적어 보시거나 위의 단추를 눌러 보세요.</div>';
+      }
+      found.forEach(function (m) {
+        var s = m.sermon, v = null;
+        for (var i = 0; i < state.videos.length; i++) { if (state.videos[i].id === s.id) { v = state.videos[i]; break; } }
+        var when = v ? v.dateLabel + ' ' + v.title : esc(s.date);
+        var mins = Math.round((toSec(s.end) - toSec(s.start)) / 60);
+        h += '<button class="item" data-act="sermon" data-id="' + esc(s.id) + '" data-back="sermons"><span class="badge ' + esc(s.type || 'A') + '">' + playIcon + '</span>' +
+          '<span class="grow"><b>' + esc(s.title) + '</b><span class="muted">' + when + (mins ? ' · 설교 ' + mins + '분' : '') + '</span><span class="why">' + whyText(m, state.needTopic) + '</span></span>' + chev + '</button>';
+      });
+      h += '<div style="height:1px;background:var(--line);margin:6px 0"></div>';
+    }
+    return h;
+  }
 
   // 설교 요약 카드 (자료는 data/sermons.json). 글은 모두 esc() 를 거칩니다.
   function summaryCard(sm) {
@@ -940,6 +1017,22 @@
     back: function () { if (!state.busy) { go(state.backTo || state.tab); } },
     sermon: function (el) { go('sermon', { sermonId: el.getAttribute('data-id'), backTo: el.getAttribute('data-back'), playFrom: 0, outlineOpen: false }); },
     playFrom: function (el) { state.playFrom = Number(el.getAttribute('data-v')) || 0; render(); },
+    // 말씀 찾기. 단추를 누를 때 입력칸의 글을 읽어 둡니다(화면을 다시 그리면 입력칸이 새로 만들어지므로).
+    findSermons: function () {
+      var el = document.getElementById('need');
+      state.need = el ? el.value.trim() : '';
+      if (!state.need && !state.needTopic) { return; }
+      state.needDone = true; render();
+    },
+    mood: function (el) {
+      var box = document.getElementById('need');
+      if (box) { state.need = box.value.trim(); }
+      var id = el.getAttribute('data-v');
+      state.needTopic = state.needTopic === id ? '' : id;
+      state.needDone = !!(state.needTopic || state.need);
+      render();
+    },
+    clearFind: function () { state.need = ''; state.needTopic = ''; state.needDone = false; render(); },
     toggleOutline: function () { state.outlineOpen = !state.outlineOpen; render(); },
     detail: function (el) { go('detail', { postId: el.getAttribute('data-id'), backTo: el.getAttribute('data-back') }); },
     ftype: function (el) { state.fType = el.getAttribute('data-v'); render(); },
