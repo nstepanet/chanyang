@@ -9,7 +9,7 @@
                ?admin=1                     관리자로 로그인한 상태
    화면        ?tab=home|sermons|sermon|news|detail|prayer|more|info|login|noti|post|members|design
                ?seg=news|bulletin|event     소식 화면의 갈래   ·   ?post=글번호  자세히 볼 글
-   상황        ?posts=0  글 없음   ·   ?note=1  설교 노트 있음   ·   ?prayers=1  내 기도제목 있음
+   상황        ?posts=0  글 없음   ·   ?note=1  설교 노트 있음   ·   ?outline=1  설교 전체 흐름을 펼치고 설교 부분부터 재생   ·   ?prayers=1  내 기도제목 있음
                ?issue=1  승인번호를 방금 만든 상태   ·   ?files=1  글 올리기에 사진 2장   ·   ?err=1  오류 안내
                ?noinstall=1  "앱 설치하기" 단추가 없는 브라우저
 
@@ -52,6 +52,7 @@
     Promise.resolve(c.ready).then(function () { setTimeout(function () {
       if (q.get('admin') === '1') { c.state.admin = { email: 'admin@church.kr' }; }
       if (q.get('note')) { c.state.notes[c.state.sermonId] = '오늘 말씀: 찬양은 호흡이 있는 동안 계속되는 고백이다.'; }
+      if (q.get('outline')) { c.state.outlineOpen = true; var sm = c.state.sermonData && c.state.sermonData.byId[c.state.sermonId]; if (sm) { c.state.playFrom = String(sm.start).split(':').reduce(function (n, x) { return n * 60 + Number(x); }, 0); } }
       if (q.get('prayers')) { c.state.myPrayers = [{ id: 'my-1', text: '가족의 건강과 이번 주 예배를 위해', meta: '11월 18일' }]; c.state.prayed = { 'p-1': true }; }
       if (q.get('tab')) { var extra = {}; if (q.get('seg')) extra.seg = q.get('seg'); if (q.get('post')) extra.postId = q.get('post'); c.go(q.get('tab'), extra); } else { c.go(c.state.screen); }
       if (q.get('issue')) { setTimeout(function () { var b = document.querySelector('[data-act=reissue]'); if (b) b.click(); }, 150); }

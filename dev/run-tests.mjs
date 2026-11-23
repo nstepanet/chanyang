@@ -13,7 +13,7 @@ const verbose = args.includes('-v');
 const filters = args.filter((a) => !a.startsWith('-'));
 
 // 서버 설정(SQL) → 앱 → 복사 페이지 → 아이콘·휴대폰 보관 → 개발용 도구 순서로 돌립니다.
-const ORDER = ['sql-1-setup', 'sql-2-members', 'sql-3-theme', 'app-1-posts', 'app-2-members', 'app-3-theme', 'copy-page', 'icons-sw', 'server-status'];
+const ORDER = ['sql-1-setup', 'sql-2-members', 'sql-3-theme', 'app-1-posts', 'app-2-members', 'app-3-theme', 'app-4-sermons', 'copy-page', 'icons-sw', 'server-status'];
 const nameOf = (f) => f.replace(/\.test\.(js|mjs)$/, '');
 const rank = (f) => { const i = ORDER.indexOf(nameOf(f)); return i < 0 ? ORDER.length : i; };
 const files = readdirSync(path.join(here, 'tests'))

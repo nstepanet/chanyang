@@ -96,6 +96,15 @@ input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--primary)
 .ok { color: var(--ok); font-weight: 700; font-size: 13px; }
 .err { color: var(--err); font-weight: 700; font-size: 13px; }
 .pre { white-space: pre-line; line-height: 1.7; }
+/* 설교 요약 카드 (설교 화면) */
+.sm-title { font-weight: 700; font-size: 17px; line-height: 1.4; }
+.sm-verse { background: var(--soft); color: var(--primary); border-radius: 10px; padding: 8px 12px; font-weight: 700; font-size: 14px; line-height: 1.5; }
+.sm-h { font-weight: 700; font-size: 15px; margin-top: 4px; }
+.sm-list { margin: 0; padding-left: 22px; line-height: 1.7; }
+.sm-list li { margin-bottom: 4px; }
+.sm-list li::marker { font-weight: 700; color: var(--primary); }
+.sm-outline { display: flex; flex-direction: column; gap: 6px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .times div { display: flex; justify-content: space-between; gap: 12px; }
 .times div span:last-child { font-weight: 700; text-align: right; }
 .photo { width: 132px; height: 127px; object-fit: cover; border-radius: 10px; flex-shrink: 0; }
@@ -209,6 +218,8 @@ html[data-theme="bright"] .seg { background: #E6EAF1; border-radius: 16px; }
 html[data-theme="bright"] .seg button { border-radius: 12px; }
 html[data-theme="bright"] .seg button[aria-pressed="true"] { box-shadow: 0 1px 3px rgba(16,24,40,.12); }
 html[data-theme="bright"] .tag { border-radius: 999px; padding: 3px 10px; }
+html[data-theme="bright"] .sm-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
+html[data-theme="bright"] .sm-verse { border-radius: 14px; padding: 10px 14px; }
 html[data-theme="bright"] .pray { border: 0; background: var(--soft); }
 html[data-theme="bright"] .pray[aria-pressed="true"] { background: var(--primary); color: #fff; }
 html[data-theme="bright"] input[type="text"], html[data-theme="bright"] input[type="email"], html[data-theme="bright"] input[type="password"], html[data-theme="bright"] textarea { border-radius: 16px; border-color: var(--line); background: #F7F8FB; }
@@ -315,6 +326,9 @@ html[data-theme="warm"] .seg { background: #E9E1D1; border-radius: 999px; }
 html[data-theme="warm"] .seg button { border-radius: 999px; color: #6A5F54; }
 html[data-theme="warm"] .seg button[aria-pressed="true"] { background: var(--card); color: var(--text); }
 html[data-theme="warm"] .tag { border-radius: 999px; padding: 3px 10px; }
+html[data-theme="warm"] .sm-title { font-family: var(--serif); font-size: 18px; }
+html[data-theme="warm"] .sm-verse { border-radius: 14px; padding: 10px 14px; }
+html[data-theme="warm"] .sm-h { font-family: var(--serif); font-size: 16px; }
 html[data-theme="warm"] .pray { border: 1.5px solid var(--primary); background: transparent; }
 html[data-theme="warm"] .pray[aria-pressed="true"] { background: var(--primary); color: #FFFCF5; }
 html[data-theme="warm"] .issued { border: 2px solid var(--primary); }

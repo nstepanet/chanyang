@@ -81,6 +81,9 @@
     serverReady: true,            // 서버에 표가 아직 만들어지지 않았으면 false
     fType: 'all', fYear: 0, fMonth: 0,
     seg: 'news', sermonId: '', postId: '',
+    sermonData: null,             // data/sermons.json 의 설교 정리 자료 ({ topics, byId }). 못 받으면 null 이고 요약 없이 보여 줍니다
+    outlineOpen: false,           // 설교 화면에서 "설교 전체 흐름"을 펼쳐 둔 상태
+    playFrom: 0,                  // 설교 화면의 영상을 몇 초부터 재생할지 (0 이면 처음부터)
     loaded: false, loadError: false, flash: '', flashText: '',
     admin: null,                  // 관리자로 로그인되어 있으면 { email }
     draft: { kind: 'news', title: '', meta: '', body: '' },
@@ -278,6 +281,26 @@
     for (var i = 0; i < state.videos.length; i++) { if (state.videos[i].id === id) { return state.videos[i]; } }
     return state.videos[0];
   }
+  // 설교 정리 자료 (없으면 null)
+  function findSummary(id) {
+    return state.sermonData && state.sermonData.byId[id] ? state.sermonData.byId[id] : null;
+  }
+  // "1:25:20" 또는 "57:30" → 초
+  function toSec(t) {
+    var a = String(t || '').split(':'), n = 0;
+    for (var i = 0; i < a.length; i++) { n = n * 60 + (Number(a[i]) || 0); }
+    return n;
+  }
+  // 초 → "1시간 25분 20초" 처럼 어르신도 읽기 쉬운 말
+  function secLabel(sec) {
+    var h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+    return (h ? h + '시간 ' : '') + m + '분' + (s ? ' ' + s + '초' : '');
+  }
+  function topicName(id) {
+    var list = state.sermonData ? state.sermonData.topics : [];
+    for (var i = 0; i < list.length; i++) { if (list[i].id === id) { return list[i].name; } }
+    return '';
+  }
   // 승인제가 켜져 있는데 이 휴대폰은 승인도 받지 않았고 관리자도 아닐 때
   function locked() {
     var g = state.gate;
@@ -440,7 +463,7 @@
     if (!shown.length) { h += '<div class="empty">이 달에는 해당 예배 영상이 없습니다.</div>'; }
     shown.forEach(function (v, i) {
       if (i === 0 || shown[i - 1].key !== v.key) { h += '<div class="date-h">' + v.dateLabel + '</div>'; }
-      var sub = (state.notes[v.id] ? '설교 노트 있음 · ' : '') + (v.priv ? '비공개 영상' : '예배 영상');
+      var sub = (state.notes[v.id] ? '설교 노트 있음 · ' : '') + (findSummary(v.id) ? '설교 요약 있음 · ' : '') + (v.priv ? '비공개 영상' : '예배 영상');
       h += '<button class="item" data-act="sermon" data-id="' + v.id + '" data-back="sermons"><span class="badge ' + v.type + '">' + playIcon + '</span>' +
         '<span class="grow"><b>' + v.title + '</b><span class="muted">' + sub + '</span></span>' + chev + '</button>';
     });
@@ -450,13 +473,22 @@
   screens.sermon = function () {
     var v = findVideo(state.sermonId);
     if (!v) { return '<div class="empty">영상을 찾지 못했습니다.</div>'; }
-    var url = 'https://www.youtube.com/watch?v=' + v.id;
+    var sm = findSummary(v.id);
+    var from = state.playFrom > 0 ? state.playFrom : 0;
+    var url = 'https://www.youtube.com/watch?v=' + v.id + (from ? '&t=' + from + 's' : '');
     var h = '<div class="stack" style="gap:14px">';
-    h += '<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/' + v.id + '?rel=0&playsinline=1" title="' + v.title + ' ' + v.fullDate + '" loading="lazy" ' +
+    // "설교 부분부터 보기"를 누르면 그 시각부터 바로 재생되도록 영상을 다시 끼웁니다. 휴대폰이 자동 재생을 막으면 그 자리에 멈춰 있어 재생 단추만 누르면 됩니다.
+    h += '<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/' + v.id + '?rel=0&playsinline=1' + (from ? '&start=' + from + '&autoplay=1' : '') + '" title="' + v.title + ' ' + v.fullDate + '" loading="lazy" ' +
       'allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>';
     h += '<div><div class="h" style="font-size:18px">' + v.title + '</div><div class="muted">' + v.fullDate + '</div></div>';
+    if (sm) {
+      var start = toSec(sm.start);
+      h += '<button class="btn" data-act="playFrom" data-v="' + start + '" aria-pressed="' + (from === start) + '">' + playIcon + '&nbsp; 설교 부분부터 보기 (' + secLabel(start) + '부터)</button>';
+      if (from === start) { h += '<div class="muted" role="status">설교 부분부터 재생합니다. 재생이 시작되지 않으면 영상의 재생 단추를 눌러 주세요.</div>'; }
+    }
     h += '<a class="btn line" href="' + url + '" target="_blank" rel="noopener">유튜브에서 영상 보기</a>';
     if (v.priv) { h += '<div class="err" style="color:var(--warm-fg)">비공개로 설정된 영상입니다. 채널 관리자만 볼 수 있습니다.</div>'; }
+    if (sm) { h += summaryCard(sm); }
     h += '<section class="card"><label class="f" for="note">설교 노트</label>' +
       '<textarea id="note" placeholder="말씀을 들으며 적고 싶은 내용을 남겨 보세요." style="min-height:140px">' + esc(state.notes[v.id] || '') + '</textarea>' +
       '<div class="row"><button class="btn" data-act="saveNote">노트 저장</button>' +
@@ -464,6 +496,36 @@
       '<div class="muted">노트는 이 휴대폰에만 저장됩니다.</div></section>';
     return h + '</div>';
   };
+
+  // 설교 요약 카드 (자료는 data/sermons.json). 글은 모두 esc() 를 거칩니다.
+  function summaryCard(sm) {
+    var h = '<section class="card sm"><div class="h" style="font-size:17px">설교 요약</div>';
+    h += '<div class="sm-title">' + esc(sm.title) + '</div>';
+    var refs = [];
+    if (sm.reading) { refs.push('본문 ' + esc(sm.reading)); }
+    (sm.verses || []).forEach(function (r) { refs.push(esc(r)); });
+    if (refs.length) { h += '<div class="sm-verse">' + refs.join(' · ') + '</div>'; }
+    if (sm.summary && sm.summary.length) {
+      h += '<div class="sm-h">세 줄 요약</div><ol class="sm-list">';
+      sm.summary.forEach(function (s) { h += '<li>' + esc(s) + '</li>'; });
+      h += '</ol>';
+    }
+    if (sm.outline && sm.outline.length) {
+      h += '<button class="btn line" data-act="toggleOutline" aria-expanded="' + state.outlineOpen + '">' + (state.outlineOpen ? '설교 전체 흐름 접기' : '설교 전체 흐름 보기') + '</button>';
+      if (state.outlineOpen) {
+        h += '<div class="sm-outline">';
+        sm.outline.forEach(function (o) { h += '<div class="sm-h">' + esc(o.h) + '</div><div class="pre">' + esc(o.t) + '</div>'; });
+        h += '</div>';
+      }
+    }
+    if (sm.todo && sm.todo.length) {
+      h += '<div class="sm-h">이번 주에 해 볼 일</div><div class="pre">' + sm.todo.map(function (t) { return '· ' + esc(t); }).join('\n') + '</div>';
+    }
+    var names = (sm.topics || []).map(topicName).filter(Boolean);
+    if (names.length) { h += '<div class="tags">' + names.map(function (n) { return '<span class="tag">' + esc(n) + '</span>'; }).join('') + '</div>'; }
+    h += '<div class="muted">예배 영상의 자막을 바탕으로 정리한 내용입니다. 정확한 말씀은 영상으로 들어 주세요.</div></section>';
+    return h;
+  }
 
   screens.news = function () {
     var list = allPosts().filter(function (p) { return p.kind === state.seg; });
@@ -876,7 +938,9 @@
       go(screen, extra);
     },
     back: function () { if (!state.busy) { go(state.backTo || state.tab); } },
-    sermon: function (el) { go('sermon', { sermonId: el.getAttribute('data-id'), backTo: el.getAttribute('data-back') }); },
+    sermon: function (el) { go('sermon', { sermonId: el.getAttribute('data-id'), backTo: el.getAttribute('data-back'), playFrom: 0, outlineOpen: false }); },
+    playFrom: function (el) { state.playFrom = Number(el.getAttribute('data-v')) || 0; render(); },
+    toggleOutline: function () { state.outlineOpen = !state.outlineOpen; render(); },
     detail: function (el) { go('detail', { postId: el.getAttribute('data-id'), backTo: el.getAttribute('data-back') }); },
     ftype: function (el) { state.fType = el.getAttribute('data-v'); render(); },
     fyear: function (el) { state.fYear = Number(el.getAttribute('data-v')); state.fMonth = 0; render(); },
@@ -1155,9 +1219,18 @@
         state.loadError = false;
       }).catch(function () { state.loadError = true; });
   }
+  // 설교 정리 자료. 파일이 없거나 깨져 있어도 앱은 요약 없이 그대로 돌아갑니다.
+  function loadSermons() {
+    return fetch('data/sermons.json').then(function (r) { if (!r.ok) { throw new Error('sermons'); } return r.json(); })
+      .then(function (d) {
+        var byId = {};
+        (d && d.sermons || []).forEach(function (s) { if (s && s.id) { byId[s.id] = s; } });
+        state.sermonData = { topics: d && d.topics || [], byId: byId, list: d && d.sermons || [] };
+      }).catch(function () { state.sermonData = null; });
+  }
   function load() {
     // 화면 디자인 확인이 늦어져도 "다 불러왔다"는 표시는 늦추지 않습니다. 돌려주는 약속만 그 확인까지 기다립니다.
-    return Promise.all([loadVideos(), syncAccess()]).then(function () { state.loaded = true; render(); return themeAsked; });
+    return Promise.all([loadVideos(), loadSermons(), syncAccess()]).then(function () { state.loaded = true; render(); return themeAsked; });
   }
   function restoreAdmin() {
     if (!serverOn) { return Promise.resolve(); }

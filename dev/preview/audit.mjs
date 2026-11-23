@@ -29,7 +29,7 @@ const KAKAO = 'Mozilla/5.0 (Linux; Android 15; SM-S931N Build/AP3A; wv) AppleWeb
 // [이름, 미리보기 주소에 붙일 값, 브라우저 종류]. 화면을 새로 만들면 여기에 한 줄 더합니다.
 const SCREENS = [
   ['01-gate', '', ANDROID], ['02-gate-ios', 'noinstall=1', IOS], ['03-gate-kakao', 'noinstall=1', KAKAO],
-  ['04-home', 'open=1&tab=home'], ['05-sermons', 'open=1&tab=sermons&note=1'], ['06-sermon', 'open=1&tab=sermon&note=1'],
+  ['04-home', 'open=1&tab=home'], ['05-sermons', 'open=1&tab=sermons&note=1'], ['06-sermon', 'open=1&tab=sermon&note=1'], ['06b-sermon-outline', 'open=1&tab=sermon&outline=1'],
   ['07-news', 'open=1&tab=news&seg=news'], ['08-events', 'open=1&tab=news&seg=event'], ['09-empty', 'open=1&tab=news&seg=bulletin&posts=0'],
   ['10-detail', 'open=1&tab=detail&post=n-20261117'], ['11-prayer', 'open=1&tab=prayer&prayers=1'], ['12-more', 'open=1&tab=more'],
   ['13-info', 'open=1&tab=info'], ['14-login', 'open=1&tab=login&err=1'], ['15-noti', 'open=1&tab=noti'],

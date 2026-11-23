@@ -64,6 +64,8 @@ body { font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSy
 .seg button { border-radius: 12px; }
 .seg button[aria-pressed="true"] { box-shadow: 0 1px 3px rgba(16,24,40,.12); }
 .tag { border-radius: 999px; padding: 3px 10px; }
+.sm-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
+.sm-verse { border-radius: 14px; padding: 10px 14px; }
 .pray { border: 0; background: var(--soft); }
 .pray[aria-pressed="true"] { background: var(--primary); color: #fff; }
 input[type="text"], input[type="email"], input[type="password"], textarea { border-radius: 16px; border-color: var(--line); background: #F7F8FB; }
