@@ -1,5 +1,5 @@
 // 앱 파일을 바꿀 때마다 이 버전을 올리면 성도들 휴대폰에도 새 버전이 받아집니다.
-const VERSION = 'v14';
+const VERSION = 'v15';
 const CACHE = 'chanyang-' + VERSION;
 // 글꼴은 바뀌지 않는 큰 파일이라, 앱 버전이 올라가도 다시 받지 않도록 따로 보관합니다. (글꼴을 바꾸면 이 숫자를 올립니다)
 const FONTS = 'chanyang-fonts-1';

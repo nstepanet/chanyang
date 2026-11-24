@@ -304,17 +304,127 @@
   }
   // 설교 탭의 마음 단추. [주제 id, 단추 글]
   var MOODS = [['worry', '걱정이 많아요'], ['illness', '몸이 아파요'], ['family', '가족·자녀'], ['money', '물질·일터'], ['lonely', '외롭고 힘들어요'], ['thanks', '감사해요']];
-  // 글 속에 낱말이 들어 있는지. 띄어쓰기가 달라도 찾도록 띄어쓰기를 뺀 것끼리도 비교합니다.
+  // 글 속에 낱말이 들어 있는지. 띄어쓰기가 든 낱말("잠이 안")은 띄어쓰기가 달라도 찾도록 띄어쓰기를 뺀 것끼리도 비교합니다.
+  // 띄어쓰기가 없는 낱말은 그대로만 찾습니다. 그래야 "보내고 부활" 에 "고부" 가 걸리는 일이 없습니다.
   function hasWord(text, word) {
     var w = String(word || '').trim();
     if (!w) { return false; }
-    return text.indexOf(w) >= 0 || text.replace(/\s+/g, '').indexOf(w.replace(/\s+/g, '')) >= 0;
+    if (text.indexOf(w) >= 0) { return true; }
+    return /\s/.test(w) && text.replace(/\s+/g, '').indexOf(w.replace(/\s+/g, '')) >= 0;
   }
+  // ── 문장끼리 비교하기 ──
+  // 성도가 적은 문장과 설교마다 미리 적어 둔 "상황 문장"(situations)을 글자 조각으로 비교합니다.
+  // 낱말 끝의 조사·말끝을 떼고(아들이→아들, 걱정이에요→걱정), 두 가지 조각으로 봅니다.
+  //  - 글자 두 개 조각("취업", "걱정"): 뜻이 또렷해서 엉뚱한 말에 잘 걸리지 않습니다.
+  //  - 자음·모음 세 개 조각(ㅂㅏㄷ, ㅏㄷㅇ…): "두렵습니다/두려워요", "아파요/아픈" 처럼 말이 조금 달라도 비슷하다고 봅니다.
+  // 조각마다 무게를 둡니다. 거의 모든 상황 문장에 든 조각("하나님", "같아")은 가볍게, 드문 조각("수술", "야베스")은 무겁게.
+  // 모든 계산은 휴대폰 안에서만 합니다.
+  var TAILS = ['때문이에요', '때문입니다', '싶습니다', '습니다', '입니다', '됩니다', '합니다', '때문에', '이에요', '었어요', '았어요', '했어요', '됐어요', '싶어요', '주세요', '하세요', '네요', '어요', '아요', '여요', '워요', '예요', '해요', '돼요', '해서', '하고', '하게', '하기', '으로', '에서', '에게', '까지', '부터', '처럼', '보다', '마다', '이고', '이라', '이나', '이면', '하면', '되면', '한다', '된다', '하다', '되다', '이', '가', '을', '를', '은', '는', '에', '의', '도', '만', '로', '과', '와', '고', '요'];
+  // 때·정도를 나타내는 말은 사정과 상관없이 어디에나 들어가므로 비교에서 뺍니다("오늘 날씨가 좋네요" 가 "오늘" 하나로 걸리지 않게)
+  // 기도문이면 어디에나 들어가는 말("~를 위해 기도합니다", "하나님", "주님")도 뺍니다. 사정을 가르는 말이 아니기 때문입니다.
+  var STOP = ['오늘', '요즘', '지금', '어제', '내일', '매일', '날마다', '항상', '자꾸', '계속', '너무', '정말', '진짜', '많이', '조금', '그냥', '아무', '제발', '좀', '참',
+    '위해', '위한', '위하여', '기도', '기도해', '기도하', '간구', '하나님', '주님', '예수님', '아버지', '하나님께', '주님께', '바라', '원', '싶', '것', '같'];
+  // 글 → 다듬은 낱말들 (조사·말끝은 두 번까지 떼고, 두 글자는 남깁니다. 긴 것부터 떼야 하므로 TAILS 는 긴 순서)
+  function stemWords(text) {
+    var words = String(text || '').toLowerCase().replace(/[^가-힣a-z0-9\s]/g, ' ').split(/\s+/), out = [];
+    for (var i = 0; i < words.length; i++) {
+      var w = words[i];
+      if (!w) { continue; }
+      for (var pass = 0; pass < 2; pass++) {
+        for (var j = 0; j < TAILS.length; j++) {
+          var tl = TAILS[j];
+          if (w.length - tl.length >= 2 && w.slice(-tl.length) === tl) { w = w.slice(0, -tl.length); break; }
+        }
+      }
+      if (STOP.indexOf(w) < 0) { out.push(w); }
+    }
+    return out;
+  }
+  function stem(text) { return stemWords(text).join(''); }
+  // 한글 한 글자를 자음·모음으로 풉니다("걱" → "ㄱㅓㄱ"). 받침이 없으면 둘만 나옵니다.
+  var CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ', JUNG = 'ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ', JONG = ' ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ';
+  function jamo(text) {
+    var out = '';
+    for (var i = 0; i < text.length; i++) {
+      var c = text.charCodeAt(i) - 0xAC00;
+      if (c < 0 || c > 11171) { out += text.charAt(i); continue; }
+      out += CHO.charAt(Math.floor(c / 588)) + JUNG.charAt(Math.floor(c % 588 / 28)) + JONG.charAt(c % 28).replace(' ', '');
+    }
+    return out;
+  }
+  // 글 → 조각 모음 두 가지 { a: 글자 두 개 조각, b: 자모 세 개 조각 }. 조각은 낱말 안에서만 만듭니다(낱말 사이를 걸치지 않음).
+  function shingles(text) {
+    var words = stemWords(text), a = {}, b = {};
+    for (var i = 0; i < words.length; i++) {
+      var w = words[i], j = jamo(w);
+      if (w.length === 1) { a['_' + w] = 1; }
+      for (var k = 0; k + 2 <= w.length; k++) { a[w.substr(k, 2)] = 1; }
+      for (k = 0; k + 3 <= j.length; k++) { b[j.substr(k, 3)] = 1; }
+    }
+    return { a: a, b: b };
+  }
+  // 상황 문장 전체를 처음 쓸 때 한 번 훑어, 조각마다 든 문장 수(df)와 설교마다 조각 모음을 만들어 둡니다.
+  // 무게 = log((문장 수 + 1) / (그 조각이 든 문장 수 + 1)).
+  function sitIndex() {
+    var data = state.sermonData;
+    if (data.sitIdx) { return data.sitIdx; }
+    var idx = { n: 0, dfa: {}, dfb: {} };
+    data.list.forEach(function (s) {
+      s._all = { a: {}, b: {} };   // 설교의 모든 상황 문장 조각을 합친 것
+      s._sit = (s.situations || []).map(function (text) {
+        var sh = shingles(text), k;
+        idx.n++;
+        for (k in sh.a) { idx.dfa[k] = (idx.dfa[k] || 0) + 1; s._all.a[k] = 1; }
+        for (k in sh.b) { idx.dfb[k] = (idx.dfb[k] || 0) + 1; s._all.b[k] = 1; }
+        return { text: text, sh: sh };
+      });
+    });
+    data.sitIdx = idx;
+    data.list.forEach(function (s) { s._sit.forEach(function (x) { weigh(x.sh); }); });
+    return idx;
+  }
+  function weightOf(df, k) {
+    var idx = state.sermonData.sitIdx;
+    return Math.log((idx.n + 1) / ((df[k] || 0) + 1));
+  }
+  // 조각 모음에 무게 합을 적어 둡니다
+  function weigh(sh) {
+    var idx = state.sermonData.sitIdx, k;
+    sh.wa = 0; sh.wb = 0;
+    for (k in sh.a) { sh.wa += weightOf(idx.dfa, k); }
+    for (k in sh.b) { sh.wb += weightOf(idx.dfb, k); }
+    return sh;
+  }
+  // 겹친 조각의 무게 합
+  function shared(df, x, y) {
+    var both = 0;
+    for (var k in x) { if (y[k]) { both += weightOf(df, k); } }
+    return both;
+  }
+  // 적은 글(q)과 상황 문장 하나(s)가 얼마나 비슷한지 0~1.
+  // 조각 종류마다 겹침 비율(다이스)과 적은 글이 얼마나 담겼는지(덮임)의 기하평균을 내고 둘을 반씩 섭니다.
+  // 짧게 적어도("취업") 그 말이 상황 문장에 들어 있으면 점수가 나오게 하려는 것입니다.
+  function similarity(q, s) {
+    var idx = state.sermonData.sitIdx, v = 0;
+    if (q.wa && s.wa) { var ba = shared(idx.dfa, q.a, s.a); v += 0.5 * Math.sqrt(2 * ba / (q.wa + s.wa) * (ba / q.wa)); }
+    if (q.wb && s.wb) { var bb = shared(idx.dfb, q.b, s.b); v += 0.5 * Math.sqrt(2 * bb / (q.wb + s.wb) * (bb / q.wb)); }
+    return v;
+  }
+  // 적은 글의 조각이 그 설교의 상황 문장 어디에든 들어 있는 비율 0~1. 긴 글이 여러 사정을 담을 때 한 문장만으로는 못 재서 함께 봅니다.
+  function covered(q, s) {
+    var idx = state.sermonData.sitIdx, v = 0;
+    if (q.wa) { v += 0.5 * shared(idx.dfa, q.a, s._all.a) / q.wa; }
+    if (q.wb) { v += 0.5 * shared(idx.dfb, q.b, s._all.b) / q.wb; }
+    return v;
+  }
+  var SIM_MIN = 0.3;   // 이보다 낮으면 비슷하지 않다고 봅니다
   // 적은 글과 고른 마음 단추에 맞는 설교를 점수 순으로 돌려줍니다. 모든 계산은 휴대폰 안에서만 합니다.
-  // 점수: 설교의 찾는 말이 글에 있으면 3점, 글에서 찾은 주제가 설교 주제면 2점, 마음 단추의 주제면 4점. 비슷하면 최근 설교가 앞에 옵니다.
-  function matchSermons(text, topicId) {
+  // 점수: 상황 문장과 비슷한 정도(0~1)×15, 설교의 찾는 말이 글에 있으면 3점(세 개까지), 글에서 찾은 주제가 설교 주제면 2점, 마음 단추의 주제면 4점. 비슷하면 최근 설교가 앞에 옵니다.
+  // 비슷한 정도 = sqrt(가장 비슷한 상황 문장과의 비슷함 × 설교 전체에 덮인 비율)
+  function matchSermons(text, topicId, limit) {
     var data = state.sermonData;
     if (!data) { return []; }
+    sitIndex();
     text = String(text || '').trim();
     var foundTopics = {};   // 글에서 찾은 주제 id → 걸린 낱말
     if (text) {
@@ -324,23 +434,37 @@
         }
       });
     }
+    var q = text ? weigh(shingles(text)) : null;
     var out = [];
     data.list.forEach(function (s, idx) {
-      var score = 0, why = [];
+      var score = 0, why = [], best = 0, bestText = '';
+      var sits = s._sit || [];
+      if (q && sits.length && s._all) {
+        for (var i = 0; i < sits.length; i++) {
+          var sim = similarity(q, sits[i].sh);
+          if (sim > best) { best = sim; bestText = sits[i].text; }
+        }
+        best = Math.sqrt(best * covered(q, s));
+        if (best >= SIM_MIN) { score += best * 15; } else { bestText = ''; }
+      }
+      // 찾는 말은 세 개까지만 셉니다(9점). 그보다는 상황 문장과 얼마나 비슷한지가 더 중요하기 때문입니다.
+      var hits = 0;
       (s.keywords || []).forEach(function (k) {
-        if (text && hasWord(text, k)) { score += 3; if (why.indexOf(k) < 0) { why.push(k); } }
+        if (text && hasWord(text, k)) { hits++; if (why.indexOf(k) < 0) { why.push(k); } }
       });
+      score += Math.min(hits, 3) * 3;
       (s.topics || []).forEach(function (t) {
         if (foundTopics[t]) { score += 2; if (why.indexOf(foundTopics[t]) < 0) { why.push(foundTopics[t]); } }
         if (topicId && t === topicId) { score += 4; }
       });
-      if (score > 0) { out.push({ sermon: s, score: score, why: why, order: idx }); }
+      if (score > 0) { out.push({ sermon: s, score: score, why: why, sim: best, sit: bestText, order: idx }); }
     });
     out.sort(function (a, b) { return b.score - a.score || a.order - b.order; });
-    return out.slice(0, 3);
+    return out.slice(0, limit || 3);
   }
-  // 추천 이유 한 줄. 걸린 낱말이 있으면 그 낱말을, 없으면 마음 단추의 주제 이름을 보여 줍니다.
+  // 추천 이유 한 줄. 비슷한 상황 문장이 있으면 그 문장을, 아니면 걸린 낱말을, 그것도 없으면 마음 단추의 주제 이름을 보여 줍니다.
   function whyText(m, topicId) {
+    if (m.sit) { return '‘' + esc(m.sit) + '’ 하는 분께 맞는 말씀'; }
     var words = m.why.slice(0, 3).map(function (w) { return '‘' + esc(w) + '’'; });
     if (words.length) { return words.join(' ') + '에 맞는 말씀'; }
     var name = topicName(topicId);
@@ -1350,5 +1474,5 @@
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
   }
 
-  window.__chanyang = { state: state, go: go, load: load, ready: ready, hooks: hooks, sync: syncAccess, syncTheme: syncTheme }; // 점검용
+  window.__chanyang = { state: state, go: go, load: load, ready: ready, hooks: hooks, sync: syncAccess, syncTheme: syncTheme, match: matchSermons, stem: stem }; // 점검용
 })();
