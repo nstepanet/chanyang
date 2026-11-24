@@ -346,6 +346,15 @@
     var name = topicName(topicId);
     return name ? '‘' + esc(name) + '’ 주제의 말씀' : '맞는 말씀';
   }
+  // 권하는 설교 한 줄(누르면 그 설교 화면으로). 설교 탭의 말씀 찾기와 기도제목 화면에서 같이 씁니다.
+  function pickItem(m, topicId, back, cls) {
+    var s = m.sermon, v = null;
+    for (var i = 0; i < state.videos.length; i++) { if (state.videos[i].id === s.id) { v = state.videos[i]; break; } }
+    var when = v ? v.dateLabel + ' ' + v.title : esc(s.date);
+    var mins = Math.round((toSec(s.end) - toSec(s.start)) / 60);
+    return '<button class="item' + (cls ? ' ' + cls : '') + '" data-act="sermon" data-id="' + esc(s.id) + '" data-back="' + esc(back) + '"><span class="badge ' + esc(s.type || 'A') + '">' + playIcon + '</span>' +
+      '<span class="grow"><b>' + esc(s.title) + '</b><span class="muted">' + when + (mins ? ' · 설교 ' + mins + '분' : '') + '</span><span class="why">' + whyText(m, topicId) + '</span></span>' + chev + '</button>';
+  }
   // 승인제가 켜져 있는데 이 휴대폰은 승인도 받지 않았고 관리자도 아닐 때
   function locked() {
     var g = state.gate;
@@ -561,14 +570,7 @@
       if (!found.length) {
         h += '<div class="empty">맞는 설교를 찾지 못했습니다. 다른 말로 적어 보시거나 위의 단추를 눌러 보세요.</div>';
       }
-      found.forEach(function (m) {
-        var s = m.sermon, v = null;
-        for (var i = 0; i < state.videos.length; i++) { if (state.videos[i].id === s.id) { v = state.videos[i]; break; } }
-        var when = v ? v.dateLabel + ' ' + v.title : esc(s.date);
-        var mins = Math.round((toSec(s.end) - toSec(s.start)) / 60);
-        h += '<button class="item" data-act="sermon" data-id="' + esc(s.id) + '" data-back="sermons"><span class="badge ' + esc(s.type || 'A') + '">' + playIcon + '</span>' +
-          '<span class="grow"><b>' + esc(s.title) + '</b><span class="muted">' + when + (mins ? ' · 설교 ' + mins + '분' : '') + '</span><span class="why">' + whyText(m, state.needTopic) + '</span></span>' + chev + '</button>';
-      });
+      found.forEach(function (m) { h += pickItem(m, state.needTopic, 'sermons', ''); });
       h += '<div style="height:1px;background:var(--line);margin:6px 0"></div>';
     }
     return h;
@@ -668,7 +670,13 @@
       h += '<section class="card"><div class="row" style="gap:8px"><span class="tag">' + p.tag + '</span><span class="muted">' + esc(p.meta) + '</span></div>' +
         '<div class="pre">' + esc(p.text) + '</div><div class="row">' +
         '<button class="pray" data-act="pray" data-id="' + esc(p.id) + '" aria-pressed="' + on + '">' + (on ? '기도했습니다' : '기도합니다') + '</button>' +
-        (p.tag === '나의 기도' ? '<button class="btn text" data-act="delPrayer" data-id="' + esc(p.id) + '">지우기</button>' : '') + '</div></section>';
+        (p.tag === '나의 기도' ? '<button class="btn text" data-act="delPrayer" data-id="' + esc(p.id) + '">지우기</button>' : '') + '</div>';
+      // 내가 적은 기도에 맞는 설교가 있으면 한 편만 권합니다. 찾기는 휴대폰 안에서만 하고, 기도 글은 어디에도 보내지 않습니다.
+      if (p.tag === '나의 기도') {
+        var picks = matchSermons(p.text, '');
+        if (picks.length) { h += '<div class="pick-h">이 기도에 힘이 되는 설교</div>' + pickItem(picks[0], '', 'prayer', 'pick'); }
+      }
+      h += '</section>';
     });
     return h + '</div>';
   };
