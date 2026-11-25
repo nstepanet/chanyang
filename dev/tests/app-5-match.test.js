@@ -24,7 +24,7 @@ const CASES = [
   ['교회에서 직분을 맡게 되어 부담이 됩니다', ['USDeVgFiiyA', 'lToXFBHr43E', 'tk1FjU5SVYg']],
   ['대표 기도를 어떻게 해야 할지 모르겠어요', ['lToXFBHr43E']],
   ['자녀에게 믿음을 어떻게 전해야 할까요', ['Hh6hX1eMoz8', 'AhAMV_XFbek', 'nhSWiUFQyBY', '0v6B9nRWu4g']],
-  ['밤에 잠이 안 오고 불안해요', ['EaeHsjNlBUc', '8NtSHTWvUpo', 'ZEOVWqoYKls', 'nhSWiUFQyBY', 'Zb6NG_wI8Vk', '6WMQ_VNc5GY', 'onrPS47hIAo', 'ZPPXd2ESgbE', 'im2gkYgaKyw', 'vrDdGcA9TI4', 'TvlEpeXyN6A']],
+  ['밤에 잠이 안 오고 불안해요', ['EaeHsjNlBUc', '8NtSHTWvUpo', 'ZEOVWqoYKls', 'nhSWiUFQyBY', 'Zb6NG_wI8Vk', '6WMQ_VNc5GY', 'onrPS47hIAo', 'ZPPXd2ESgbE', 'im2gkYgaKyw', 'vrDdGcA9TI4', 'TvlEpeXyN6A', 'VTqafLwPJO4']],
   ['고집이 세서 사람들과 자꾸 부딪혀요', ['tk1FjU5SVYg', 'cXmA_xTrAFg', 'zhf5--7I1xg', 'D5-T0vdK5z8', 'Dg2oPdU_nyY', 'WGFYEWixD2Y', '5aDYPvhiZ-U', 'JKDoR89dMS8']],
   ['혼자 사는 게 외롭고 쓸쓸합니다', ['8NtSHTWvUpo', 'paMbnD44rIo', 'TvlEpeXyN6A', 'AhAMV_XFbek', 'frmkZ6DsAvw', 'eOb7G_M9Iv8', 'X1SEUJPqviM']],
   ['제사 문제로 집안이 시끄러워요', ['CFyVFvYoYpY', 'pcLLEeChYqk', 'D5-T0vdK5z8', '6ql5YwCSPRM']],
