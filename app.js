@@ -324,6 +324,54 @@
   // 기도문이면 어디에나 들어가는 말("~를 위해 기도합니다", "하나님", "주님")도 뺍니다. 사정을 가르는 말이 아니기 때문입니다.
   var STOP = ['오늘', '요즘', '지금', '어제', '내일', '매일', '날마다', '항상', '자꾸', '계속', '너무', '정말', '진짜', '많이', '조금', '그냥', '아무', '제발', '좀', '참',
     '위해', '위한', '위하여', '기도', '기도해', '기도하', '간구', '하나님', '주님', '예수님', '아버지', '하나님께', '주님께', '바라', '원', '싶', '것', '같'];
+  // 비슷한 말 묶음. [덧붙일 말, 이렇게 적어도 같은 뜻으로 볼 말들…]
+  // 성도가 "회사에서 잘렸어요" 라고 적어도 상황 문장의 "직장을 잃었어요" 와 이어지도록, 글에 뒤쪽 말이 있으면 앞의 말을 덧붙여 비교합니다.
+  // 적은 글과 상황 문장 양쪽에 똑같이 덧붙이므로 원래 낱말끼리 맞는 것은 그대로 맞습니다.
+  // 말을 찾는 방법: 띄어쓰기가 없는 말은 낱말의 앞부분이 같으면 걸립니다("해고" → "해고당할까"). 그래야 "수술" 에 "술" 이 걸리지 않습니다.
+  //   '=' 로 시작하는 말은 낱말 전체가 같아야 걸립니다("=암" 은 "암송", "암담" 에 걸리지 않음).
+  //   띄어쓰기가 든 말("세상을 떠")은 글 어디에든 있으면 걸립니다.
+  var SAME = [
+    ['직장', '회사', '일터', '일자리', '직업', '출근', '월급', '취업', '취직', '사업장'],
+    ['실직 직장', '실직', '해고', '잘렸', '잘린', '잘려', '잘릴', '퇴직', '퇴사', '명퇴', '권고사직', '구조조정', '백수', '무직', '일을 잃', '일이 없', '일거리'],
+    ['사업 가게', '폐업', '자영업', '장사', '점포', '식당', '매출', '부도', '파산', '가게'],
+    ['빚 돈', '대출', '카드값', '카드빚', '연체', '이자', '갚', '독촉'],
+    ['돈 형편', '생활비', '먹고살', '먹고 살', '살림', '가난', '형편', '경제', '수입', '물가', '빠듯'],
+    ['병 아파 몸', '질병', '종양', '항암', '=암', '암이', '암에', '암을', '암으로', '투병', '통증', '쑤시', '쑤셔', '저려', '저리', '결려', '당뇨', '혈압', '디스크', '관절', '중환자', '응급실', '입원', '병원', '진단', '편찮', '몸이 약', '몸이 안 좋', '건강이 안', '건강검진', '아프', '아파', '아픈', '치매', '뇌졸중', '중풍', '마비'],
+    ['죽음 천국 장례', '돌아가셨', '돌아가신', '돌아가셔', '하늘나라', '소천', '별세', '세상을 떠', '먼저 보내', '먼저 보낸', '먼저 간', '먼저 떠나보', '사별', '장례', '상을 당', '임종'],
+    ['외로 혼자', '쓸쓸', '고독', '적적', '외톨', '버림받', '소외', '아무도 없', '아무도 나를', '찾아오지', '찾지 않', '연락이 없', '혼자'],
+    ['우울 힘들', '무기력', '기운이 없', '기운 없', '의욕', '허무', '공허', '살맛', '사는 게 재미', '눈물', '슬퍼', '슬픔', '우울'],
+    ['갈등 미움 상처', '원수', '사이가 틀', '틀어졌', '틀어진', '미워', '미움', '앙금', '서운', '상처', '싸웠', '싸움', '다퉜', '다투', '싸우', '불화', '의절', '연락을 끊', '말을 안 해', '등을 돌'],
+    ['가족', '시댁', '시어머니', '시아버지', '시누', '며느리', '사위', '장모', '장인', '친정', '=형제', '형제가', '형제와', '형제들', '형제끼리', '형제간', '=자매', '자매가', '남매', '식구', '집안'],
+    ['자녀 아이', '=애', '=애가', '=애들', '애들이', '우리 애', '손주', '손자', '손녀', '자식', '아들', '=딸', '딸이', '딸아이', '=아이', '아이가', '아이를', '아이는', '아이들', '아이의', '아이에게'],
+    ['술 담배 끊', '=술', '술을', '술만', '술이', '술과', '술 마', '마셔', '음주', '담배', '흡연', '도박', '게임', '중독', '음란', '못 끊', '끊고 싶', '끊지 못', '끊을 수'],
+    ['걱정 불안', '근심', '염려', '초조', '조마조마', '불면', '잠이 안', '잠을 못', '답답', '숨이 막', '가슴이 두근', '캄캄', '막막', '마음이 놓이지', '앞이 안 보', '앞길'],
+    ['두렵 겁', '무서', '두려', '겁나', '겁이', '떨려', '무섭', '공포'],
+    ['늙 나이', '노년', '노후', '나이 들', '나이가 들', '연세', '깜빡', '기억력', '노인', '늙'],
+    ['교회 신앙 떠', '교회를 안 나', '교회에 안 나', '교회 안 나', '교회를 안 다', '교회 안 다', '교회를 떠', '교회를 쉬', '신앙을 떠', '믿음을 잃', '믿음을 버', '안 믿', '믿지 않', '주님을 떠', '하나님을 떠', '냉담']
+  ];
+  // 글에 들어 있는 비슷한 말 묶음의 "덧붙일 말"을 모아 돌려줍니다(없으면 빈 글).
+  function sameExtra(text) {
+    var t = String(text || '').toLowerCase(), words = t.replace(/[^가-힣a-z0-9\s]/g, ' ').split(/\s+/), extra = [];
+    for (var g = 0; g < SAME.length; g++) {
+      var hit = false;
+      for (var i = 1; i < SAME[g].length && !hit; i++) {
+        var v = SAME[g][i];
+        if (/\s/.test(v)) { hit = hasWord(t, v); continue; }
+        var whole = v.charAt(0) === '=';
+        if (whole) { v = v.slice(1); }
+        for (var j = 0; j < words.length && !hit; j++) {
+          hit = whole ? words[j] === v : words[j].indexOf(v) === 0;
+        }
+      }
+      if (hit) { extra.push(SAME[g][0]); }
+    }
+    return extra.join(' ');
+  }
+  // 글 뒤에 비슷한 말을 덧붙인 것
+  function withSame(text) {
+    var extra = sameExtra(text);
+    return extra ? text + ' ' + extra : String(text || '');
+  }
   // 글 → 다듬은 낱말들 (조사·말끝은 두 번까지 떼고, 두 글자는 남깁니다. 긴 것부터 떼야 하므로 TAILS 는 긴 순서)
   function stemWords(text) {
     var words = String(text || '').toLowerCase().replace(/[^가-힣a-z0-9\s]/g, ' ').split(/\s+/), out = [];
@@ -354,7 +402,7 @@
   }
   // 글 → 조각 모음 두 가지 { a: 글자 두 개 조각, b: 자모 세 개 조각 }. 조각은 낱말 안에서만 만듭니다(낱말 사이를 걸치지 않음).
   function shingles(text) {
-    var words = stemWords(text), a = {}, b = {};
+    var words = stemWords(withSame(text)), a = {}, b = {};
     for (var i = 0; i < words.length; i++) {
       var w = words[i], j = jamo(w);
       if (w.length === 1) { a['_' + w] = 1; }
@@ -378,6 +426,8 @@
         for (k in sh.b) { idx.dfb[k] = (idx.dfb[k] || 0) + 1; s._all.b[k] = 1; }
         return { text: text, sh: sh };
       });
+      // 설교 제목·세 줄 요약·해 볼 일·대지 제목의 조각. 상황 문장에 없는 말로 적어도 설교 내용에 있으면 조금 더 쳐 줍니다
+      s._sum = shingles([s.title].concat(s.summary || [], s.todo || [], (s.outline || []).map(function (o) { return o.h; })).join(' '));
     });
     data.sitIdx = idx;
     data.list.forEach(function (s) { s._sit.forEach(function (x) { weigh(x.sh); }); });
@@ -417,9 +467,11 @@
     if (q.wb) { v += 0.5 * shared(idx.dfb, q.b, s._all.b) / q.wb; }
     return v;
   }
+  var W_SUM = 2;     // 요약 글에 적은 글의 절반 넘게 들어 있을 때 더하는 점수(×덮인 비율). 상황 문장(×15)보다 훨씬 작게 둡니다
   var SIM_MIN = 0.3;   // 이보다 낮으면 비슷하지 않다고 봅니다
   // 적은 글과 고른 마음 단추에 맞는 설교를 점수 순으로 돌려줍니다. 모든 계산은 휴대폰 안에서만 합니다.
-  // 점수: 상황 문장과 비슷한 정도(0~1)×15, 설교의 찾는 말이 글에 있으면 3점(세 개까지), 글에서 찾은 주제가 설교 주제면 2점, 마음 단추의 주제면 4점. 비슷하면 최근 설교가 앞에 옵니다.
+  // 적은 글과 상황 문장 모두 비슷한 말 묶음(SAME)을 덧붙인 뒤 비교합니다.
+  // 점수: 상황 문장과 비슷한 정도(0~1)×15, 요약 글에 덮인 비율이 0.5 이상이면 ×2, 설교의 찾는 말이 글에 있으면 3점(세 개까지), 글에서 찾은 주제가 설교 주제면 2점, 마음 단추의 주제면 4점. 비슷하면 최근 설교가 앞에 옵니다.
   // 비슷한 정도 = sqrt(가장 비슷한 상황 문장과의 비슷함 × 설교 전체에 덮인 비율)
   function matchSermons(text, topicId, limit) {
     var data = state.sermonData;
@@ -427,10 +479,11 @@
     sitIndex();
     text = String(text || '').trim();
     var foundTopics = {};   // 글에서 찾은 주제 id → 걸린 낱말
+    var textX = text ? withSame(text) : '';   // 비슷한 말을 덧붙인 글. 주제와 찾는 말도 이것으로 봅니다
     if (text) {
       data.topics.forEach(function (t) {
         for (var i = 0; i < (t.words || []).length; i++) {
-          if (hasWord(text, t.words[i])) { foundTopics[t.id] = t.words[i]; break; }
+          if (hasWord(textX, t.words[i])) { foundTopics[t.id] = t.words[i]; break; }
         }
       });
     }
@@ -447,10 +500,14 @@
         best = Math.sqrt(best * covered(q, s));
         if (best >= SIM_MIN) { score += best * 15; } else { bestText = ''; }
       }
+      if (q && s._sum) {
+        var sc = covered(q, { _all: s._sum });
+        if (sc >= 0.5) { score += sc * W_SUM; }
+      }
       // 찾는 말은 세 개까지만 셉니다(9점). 그보다는 상황 문장과 얼마나 비슷한지가 더 중요하기 때문입니다.
       var hits = 0;
       (s.keywords || []).forEach(function (k) {
-        if (text && hasWord(text, k)) { hits++; if (why.indexOf(k) < 0) { why.push(k); } }
+        if (text && hasWord(textX, k)) { hits++; if (why.indexOf(k) < 0) { why.push(k); } }
       });
       score += Math.min(hits, 3) * 3;
       (s.topics || []).forEach(function (t) {
@@ -1474,5 +1531,5 @@
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
   }
 
-  window.__chanyang = { state: state, go: go, load: load, ready: ready, hooks: hooks, sync: syncAccess, syncTheme: syncTheme, match: matchSermons, stem: stem }; // 점검용
+  window.__chanyang = { state: state, go: go, load: load, ready: ready, hooks: hooks, sync: syncAccess, syncTheme: syncTheme, match: matchSermons, stem: stem, same: sameExtra }; // 점검용
 })();

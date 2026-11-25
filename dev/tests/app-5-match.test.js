@@ -47,6 +47,27 @@ const CASES = [
   ['이단 사람이 찾아와서 성경 공부를 하자고 해요', ['EiR3Lb2hbyQ', 'fCunpUexmgM', '0Fmj7XmkZac', 'h8J56h1qkqg', 'CFyVFvYoYpY']]
 ];
 
+// 상황 문장과 다른 말로 적은 문장(비슷한 말 묶음 SAME 점검). [글, 세 개 안에 하나는 나와야 하는 설교 ID 들]
+const JOB = ['8NtSHTWvUpo', 'EaeHsjNlBUc', 'ZPPXd2ESgbE', '6WMQ_VNc5GY', 'XhARBcA4Xvc', 'im2gkYgaKyw', 'Tp3KN41uqTw'];
+const ILL = ['xh0xmAvKy8Q', 'im2gkYgaKyw', 'DLZej_tP2lQ', 'vrDdGcA9TI4', 'flUtNxlEFVA', 'noUNXF2j-uY', 'cXmA_xTrAFg', 'k4RIKozFEAU', 'vl2CpaJkl5E', '65sXk6LUSL4', 'nhSWiUFQyBY', 'ZEOVWqoYKls'];
+const DEATH = ['JQitFya7naE', 'k4RIKozFEAU', 'noUNXF2j-uY', 'EiR3Lb2hbyQ', 'paMbnD44rIo', 'nhSWiUFQyBY', 'FNgvl951RK8'];
+const LONE = ['8NtSHTWvUpo', 'paMbnD44rIo', 'TvlEpeXyN6A', 'AhAMV_XFbek', 'frmkZ6DsAvw', 'eOb7G_M9Iv8', 'X1SEUJPqviM', 'nhSWiUFQyBY', 'flUtNxlEFVA', 'vrDdGcA9TI4', 'Zb6NG_wI8Vk', 'XhARBcA4Xvc', 'D4Eafe1rkls'];
+const PARA = [
+  ['남편이 회사에서 잘렸어요', JOB],
+  ['일터에서 해고당할까 봐 겁나요', JOB],
+  ['카드값이 밀려서 막막해요', JOB],
+  ['폐업하고 나니 앞길이 안 보여요', JOB],
+  ['허리가 쑤시고 다리가 저려요', ILL],
+  ['아버지가 중환자실에 계세요', ILL],
+  ['당뇨 때문에 몸이 많이 약해졌어요', ILL],
+  ['남편을 하늘나라에 보냈어요', DEATH],
+  ['엄마가 돌아가셔서 너무 그리워요', DEATH],
+  ['아무도 나를 찾지 않아요', LONE],
+  ['시어머니와 사이가 틀어졌어요', ['zhf5--7I1xg', 'WGFYEWixD2Y', 'D5-T0vdK5z8', 'bqNe9cSqK0o', 'L6bwzktjAtk', 'paMbnD44rIo', 'X1SEUJPqviM', '6ql5YwCSPRM']],
+  ['손주가 교회를 안 다녀요', ['Hh6hX1eMoz8', 'AhAMV_XFbek', 'nhSWiUFQyBY', '0v6B9nRWu4g', 'e1gllNKziAc']],
+  ['도박을 못 끊겠어요', ['4GdvlYIKoFU', 'onrPS47hIAo', 'C8Vu3MEH71o']]
+];
+
 // 옛 방식(찾는 말·주제 낱말만)으로도 몇 개를 맞히는지 함께 세어 비교합니다. 검사 결과에는 넣지 않고 보여만 줍니다.
 function oldMatch(data, text) {
   const has = (k) => text.indexOf(k) >= 0 || text.replace(/\s+/g, '').indexOf(k.replace(/\s+/g, '')) >= 0;
@@ -68,7 +89,7 @@ function oldMatch(data, text) {
   ok('설교마다 상황 문장이 25개 이상', data.sermons.every((s) => Array.isArray(s.situations) && s.situations.length >= 25), data.sermons.filter((s) => !s.situations || s.situations.length < 25).map((s) => s.date).join(','));
   ok('상황 문장은 4~40자', data.sermons.every((s) => s.situations.every((t) => t.length >= 4 && t.length <= 40)));
   ok('상황 문장에 성도 이름이 없음(집사·권사·장로 호칭으로 어림)', !data.sermons.some((s) => s.situations.some((t) => /[가-힣]{2,3}(집사|권사|장로|전도사)/.test(t))));
-  ok('시험 문장이 기대하는 설교 ID 가 모두 자료에 있음', CASES.every((c) => c[1].every((id) => byId.has(id))));
+  ok('시험 문장이 기대하는 설교 ID 가 모두 자료에 있음', CASES.concat(PARA).every((c) => c[1].every((id) => byId.has(id))));
 
   console.log('\n[2] 글 다듬기(stem)');
   const be = makeBackend();
@@ -89,6 +110,20 @@ function oldMatch(data, text) {
   }
   console.log('   맞힌 수: 새 방식 ' + hit + '/' + CASES.length + ', 옛 방식(찾는 말만) ' + oldHit + '/' + CASES.length);
   ok('시험 문장의 9할 이상을 맞힘', hit >= Math.ceil(CASES.length * 0.9), hit + '/' + CASES.length);
+
+  console.log('\n[3b] 다른 말로 적은 문장 ' + PARA.length + '개 (비슷한 말 묶음)');
+  for (const [text, want] of PARA) {
+    const got = C.match(text, '').map((m) => m.sermon.id);
+    ok('"' + text + '"', got.some((id) => want.includes(id)), got.map((id) => (byId.get(id) || {}).date).join(', '));
+  }
+  // 비슷한 말이 엉뚱한 낱말에 걸리지 않는지: 낱말 앞부분으로만, '=' 은 낱말 전체로만 찾습니다
+  const extra = (t) => C.same(t);
+  ok('"회사에서 잘렸어요" 에 직장·실직이 덧붙음', /직장/.test(extra('회사에서 잘렸어요')) && /실직/.test(extra('회사에서 잘렸어요')), extra('회사에서 잘렸어요'));
+  ok('"수술" 에 술·담배 묶음이 걸리지 않음', !/술 담배/.test(extra('수술을 앞두고 있어요')), extra('수술을 앞두고 있어요'));
+  ok('"암송" 에 병 묶음이 걸리지 않음', !/병/.test(extra('암송 대회를 준비해요')), extra('암송 대회를 준비해요'));
+  ok('"아이스크림" 에 자녀 묶음이 걸리지 않음', !/자녀/.test(extra('아이스크림이 맛있어요')), extra('아이스크림이 맛있어요'));
+  ok('"암" 은 낱말 전체가 같으면 걸림', /병/.test(extra('엄마가 암 진단을 받았어요')), extra('엄마가 암 진단을 받았어요'));
+  ok('비슷한 말이 없는 글은 그대로', extra('오늘 날씨가 좋네요') === '');
 
   console.log('\n[4] 추천 이유와 화면');
   const m = C.match('아들이 직장을 못 구해서 마음이 무거워요', '');
