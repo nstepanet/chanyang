@@ -53,7 +53,8 @@ const ILL = ['xh0xmAvKy8Q', 'im2gkYgaKyw', 'DLZej_tP2lQ', 'vrDdGcA9TI4', 'flUtNx
 const DEATH = ['JQitFya7naE', 'k4RIKozFEAU', 'noUNXF2j-uY', 'EiR3Lb2hbyQ', 'paMbnD44rIo', 'nhSWiUFQyBY', 'FNgvl951RK8'];
 const LONE = ['8NtSHTWvUpo', 'paMbnD44rIo', 'TvlEpeXyN6A', 'AhAMV_XFbek', 'frmkZ6DsAvw', 'eOb7G_M9Iv8', 'X1SEUJPqviM', 'nhSWiUFQyBY', 'flUtNxlEFVA', 'vrDdGcA9TI4', 'Zb6NG_wI8Vk', 'XhARBcA4Xvc', 'D4Eafe1rkls'];
 const PARA = [
-  ['남편이 회사에서 잘렸어요', JOB],
+  // 2025-10-26(7xjR8BJXecA)은 일자리를 잃은 가족을 붙들어 주라는 대목이 있어 맞는 답으로 칩니다
+  ['남편이 회사에서 잘렸어요', JOB.concat(['7xjR8BJXecA'])],
   ['일터에서 해고당할까 봐 겁나요', JOB],
   ['카드값이 밀려서 막막해요', JOB],
   ['폐업하고 나니 앞길이 안 보여요', JOB],
